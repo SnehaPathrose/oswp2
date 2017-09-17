@@ -138,6 +138,7 @@ void kprintf(const char *fmt, ...)
             *a = *fmt;
         }
     }
+    *a = '\0';
 }
 
 

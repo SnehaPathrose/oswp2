@@ -3,6 +3,8 @@
 #include <sys/kprintf.h>
 #include <sys/tarfs.h>
 #include <sys/ahci.h>
+#include <sys/idt.h>
+#include <sys/pic.h>
 
 #define INITIAL_STACK_SIZE 4096
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
@@ -18,11 +20,16 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     while(modulep[0] != 0x9001) modulep += modulep[1]+2;
     for(smap = (struct smap_t*)(modulep+2); smap < (struct smap_t*)((char*)modulep+modulep[1]+2*4); ++smap) {
         if (smap->type == 1 /* memory */ && smap->length != 0) {
-            kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
+            //kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
         }
     }
-    kprintf("physfree %p\n", (uint64_t)physfree);
-    kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
+    /*__asm__(
+    "int $32;\n"
+    );*/
+    //__asm__ ( "int 0x04");
+    //kprintf("physfree %p\n", (uint64_t)physfree);
+    //kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
+    while(1);
 }
 
 void boot(void)
@@ -39,6 +46,10 @@ void boot(void)
     :"r"(&initial_stack[INITIAL_STACK_SIZE])
     );
     init_gdt();
+    init_idt();
+    init_pic(32);
+    __asm__("sti;");
+
     start(
             (uint32_t*)((char*)(uint64_t)loader_stack[3] + (uint64_t)&kernmem - (uint64_t)&physbase),
             (uint64_t*)&physbase,
