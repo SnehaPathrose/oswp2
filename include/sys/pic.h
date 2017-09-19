@@ -1,1 +1,1 @@
-void init_pic(int offset1);
+void init_pic();

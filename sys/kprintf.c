@@ -1,5 +1,11 @@
 #include <sys/kprintf.h>
 
+static char* outputstring = (char*)0xb8000;
+/*
+ * Function:  getargument 
+ * --------------------
+ * Retrieves which of the first 6 arguments have to be used
+ */
 unsigned long getargument(unsigned long a, unsigned long b, unsigned long c, unsigned long d, unsigned long e, int paramnum) {
     unsigned long f=0;
     switch(paramnum) {
@@ -16,10 +22,15 @@ unsigned long getargument(unsigned long a, unsigned long b, unsigned long c, uns
     }
     return f;
 }
-static char* a = (char*)0xb8000;
+
+/*
+ * Function:  kprintf 
+ * --------------------
+ * Print a string with variables on the screen
+ * Supports variables of string, character, number, pointer and %x
+ */
 void kprintf(const char *fmt, ...)
 {
-
     char* value;
     int intvalue, length = 2;
     unsigned long pointervalue;
@@ -37,7 +48,7 @@ void kprintf(const char *fmt, ...)
     __asm__("\t mov %%r9,%0\n" : "=m"(arg5));
     __asm__("\t lea 208(%rsp),%r11\n");
     int noofarg=1;
-    for (;*fmt!='\0';a+=2,fmt++, length+=2)
+    for (;*fmt!='\0';outputstring += 2,fmt++, length += 2)
     {
         if(*fmt=='%')
         {
@@ -45,7 +56,7 @@ void kprintf(const char *fmt, ...)
             //write logic to get the noofarg argument from stack
             switch(*(fmt+1))
             {
-                case 's':
+                case 's': // handling %s variable in main string
                     if(noofarg > 6) {
                         __asm__("\t mov %%r11, %0\n": "=m"(arg6));
                         __asm__("\t add $8,%r11\n");
@@ -54,23 +65,23 @@ void kprintf(const char *fmt, ...)
                     else {
                         value = (char*)getargument(arg1, arg2, arg3, arg4, arg5, noofarg);
                     }
-                    for(int j=0;((char*)value)[j]!='\0';a+=2,j++,length+=2)
-                        *a=((char*)value)[j];
-                    a-=2;
-                    length-=2;
+                    for(int j=0;((char*)value)[j]!='\0';outputstring += 2,j++,length+=2)
+                        *outputstring=((char*)value)[j];
+                    outputstring -= 2;
+                    length -= 2;
                     break;
-                case 'c':
+                case 'c': // handling %c in main string
                     if(noofarg > 6) {
                         __asm__("\t mov %%r11, %0\n": "=m"(arg6));
                         __asm__("\t add $8,%r11\n");
-                        *a = (unsigned long)*arg6;
+                        *outputstring = (unsigned long)*arg6;
                     }
                     else {
-                        *a=(unsigned long)getargument(arg1, arg2, arg3, arg4, arg5, noofarg);
+                        *outputstring = (unsigned long)getargument(arg1, arg2, arg3, arg4, arg5, noofarg);
                     }
 
                     break;
-                case 'd':
+                case 'd': // handling %d in main string
                     if(noofarg > 6) {
                         __asm__("\t mov %%r11, %0\n": "=m"(arg6));
                         __asm__("\t add $8,%r11\n");
@@ -83,21 +94,21 @@ void kprintf(const char *fmt, ...)
 
                     while(intvalue!=0)
                     {
-                        rem[i++]=intvalue%10+'0';
-                        intvalue=intvalue/10;
+                        rem[i++] = intvalue % 10 + '0';
+                        intvalue = intvalue / 10;
                     }
-                    for(int j=i-1;j>=0;a+=2,j--,length+=2)
-                        *a=rem[j];
-                    a-=2;
-                    length-=2;
+                    for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
+                        *outputstring = rem[j];
+                    outputstring -= 2;
+                    length -= 2;
                     break;
-                case 'p':
-                    *a='0';
-                    a+=2;
-                    *a='x';
-                    a+=2;
-                    length+=4;
-                case 'x':
+                case 'p': // handling %p in main string
+                    *outputstring = '0';
+                    outputstring += 2;
+                    *outputstring = 'x';
+                    outputstring += 2;
+                    length += 4;
+                case 'x': // handling %x in main string
                     i = 0;
 
                     if(noofarg > 6) {
@@ -110,35 +121,33 @@ void kprintf(const char *fmt, ...)
                     }
                     while(pointervalue!=0)
                     {
-                        rem[i++]=(pointervalue%16)<10?(pointervalue%16)+'0':((pointervalue%16)%10)+'a';
-                        pointervalue=pointervalue/16;
+                        rem[i++] = (pointervalue%16) < 10 ? (pointervalue%16) + '0' : ((pointervalue % 16) % 10) + 'a';
+                        pointervalue = pointervalue / 16;
                     }
-                    for(int j=i-1;j>=0;a+=2,j--,length+=2)
-                        *a=rem[j];
-                    a-=2;
-                    length-=2;
+                    for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
+                        *outputstring = rem[j];
+                    outputstring -= 2;
+                    length -= 2;
                     break;
-
-
             }
             fmt++;
         }
-        else if (*fmt=='\n')
+        else if (*fmt == '\n')
         {
-            a-=length;
-            a+=160;
+            outputstring -= length;
+            outputstring += 160;
 
         }
         else if (*fmt=='\r')
         {
-            a-=length;
+            outputstring -= length;
         }
         else
         {
-            *a = *fmt;
+            *outputstring = *fmt;
         }
     }
-    *a = '\0';
+    *outputstring = '\0';
 }
 
 

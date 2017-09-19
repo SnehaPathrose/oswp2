@@ -17,18 +17,30 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
         uint64_t base, length;
         uint32_t type;
     }__attribute__((packed)) *smap;
+    register char *temp2, *temp1;
     while(modulep[0] != 0x9001) modulep += modulep[1]+2;
     for(smap = (struct smap_t*)(modulep+2); smap < (struct smap_t*)((char*)modulep+modulep[1]+2*4); ++smap) {
         if (smap->type == 1 /* memory */ && smap->length != 0) {
-            //kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
+            kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
         }
     }
-    /*__asm__(
-    "int $32;\n"
-    );*/
-    //__asm__ ( "int 0x04");
-    //kprintf("physfree %p\n", (uint64_t)physfree);
-    //kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
+    kprintf("physfree %p\n", (uint64_t)physfree);
+    kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
+    for(
+            temp1 = "Last pressed glyph", temp2 = (char*)(0xb8ec2);
+            *temp1;
+            temp1 += 1, temp2 += 2
+            ) *temp2 = *temp1;
+    temp2 = (char*)(0xb8eec);
+    *temp2 = ':';
+    
+    for(
+            temp1 = "Time since boot", temp2 = (char*)(0xb8f62);
+            *temp1;
+            temp1 += 1, temp2 += 2
+            ) *temp2 = *temp1;
+    temp2 = (char*)(0xb8f8c);
+    *temp2 = ':';
     while(1);
 }
 
@@ -47,7 +59,7 @@ void boot(void)
     );
     init_gdt();
     init_idt();
-    init_pic(32);
+    init_pic();
     __asm__("sti;");
 
     start(
