@@ -5,6 +5,7 @@
 #include <sys/ahci.h>
 #include <sys/idt.h>
 #include <sys/pic.h>
+#include <sys/pci.h>
 
 #define INITIAL_STACK_SIZE 4096
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
@@ -41,6 +42,8 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
             ) *temp2 = *temp1;
     temp2 = (char*)(0xb8f8c);
     *temp2 = ':';
+
+    checkbus();
     while(1);
 }
 
