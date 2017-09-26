@@ -91,16 +91,21 @@ void kprintf(const char *fmt, ...)
                         intvalue = (int)getargument(arg1, arg2, arg3, arg4, arg5, noofarg);
                     }
                     i = 0;
-
-                    while(intvalue!=0)
+                    if(intvalue == 0)
                     {
-                        rem[i++] = intvalue % 10 + '0';
-                        intvalue = intvalue / 10;
+                        *outputstring ='0';
                     }
-                    for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
-                        *outputstring = rem[j];
-                    outputstring -= 2;
-                    length -= 2;
+                    else {
+                        while(intvalue!=0)
+                        {
+                            rem[i++] = intvalue % 10 + '0';
+                            intvalue = intvalue / 10;
+                        }
+                        for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
+                            *outputstring = rem[j];
+                        outputstring -= 2;
+                        length -= 2;
+                    }
                     break;
                 case 'p': // handling %p in main string
                     *outputstring = '0';
@@ -119,15 +124,21 @@ void kprintf(const char *fmt, ...)
                     else {
                         pointervalue = (unsigned long)getargument(arg1, arg2, arg3, arg4, arg5, noofarg);
                     }
-                    while(pointervalue!=0)
+                    if(pointervalue == 0)
                     {
-                        rem[i++] = (pointervalue%16) < 10 ? (pointervalue%16) + '0' : ((pointervalue % 16) % 10) + 'a';
-                        pointervalue = pointervalue / 16;
+                        *outputstring ='0';
                     }
-                    for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
-                        *outputstring = rem[j];
-                    outputstring -= 2;
-                    length -= 2;
+                    else {
+                        while(pointervalue!=0)
+                        {
+                            rem[i++] = (pointervalue%16) < 10 ? (pointervalue%16) + '0' : ((pointervalue % 16) % 10) + 'a';
+                            pointervalue = pointervalue / 16;
+                        }
+                        for(int j = i - 1;j >= 0;outputstring += 2, j--, length += 2)
+                            *outputstring = rem[j];
+                        outputstring -= 2;
+                        length -= 2;
+                    }
                     break;
             }
             fmt++;
