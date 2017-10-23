@@ -9,6 +9,12 @@
 #define HBA_PxCMD_CLO  (1U << 3)
 #define HBA_PxCMD_FRE  (1U << 4)
 #define HBA_PxCMD_FR   (1U << 14)
+#define HBA_PxCMD_SUD  (1U << 1)
+#define HBA_PxCMD_POD  (1U << 2)
+#define HBA_PxCMD_ICC  (1U << 28)
+#define HBA_GHC_AE     (1U << 31)
+#define HBA_GHC_IE     (1U << 1)
+#define HBA_GHC_HR     (1U)
 #define HBA_PxCMD_CR   (1U << 15)
 #define HBA_PxIS_TFES  (1U << 30)
 
@@ -42,7 +48,7 @@
 #define ATA_CMD_IDENTIFY        0xEC
 
 #define	AHCI_BASE	0x400000
-#define	ABAR_REMAP	0x8000000
+#define	ABAR_REMAP	0xa6000
 #define ATA_DEV_BUSY 0x80
 #define ATA_DEV_DRQ 0x08
 

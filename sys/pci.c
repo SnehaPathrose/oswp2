@@ -37,72 +37,6 @@ int find_cmdslot(hba_port_t *port)
     return -1;
 }
 
-/*void identify_device(hba_port_t *port)
-{
-    uint8_t *buf=(uint8_t *)0x80000;
-    
-    memset(buf, 0, 511*sizeof(uint8_t));
-    port->is_rwc = (uint32_t)-1;		// Clear pending interrupt bits
-    int spin = 0; // Spin lock timeout counter
-    int slot = find_cmdslot(port);
-    if (slot == -1)
-        return;
-
-    hba_cmd_header_t *cmdheader = (hba_cmd_header_t*)port->clb;
-    cmdheader += slot;
-    cmdheader->cfl = sizeof(fis_reg_h2d_t)/sizeof(uint32_t);	// Command FIS size
-    cmdheader->prdtl = 1;	// PRDT entries count
-
-    hba_cmd_tbl_t *cmdtbl = (hba_cmd_tbl_t*)cmdheader->ctba;
-    memset(cmdtbl, 0, sizeof(hba_cmd_tbl_t) +
-                      (cmdheader->prdtl-1)*sizeof(hba_prdt_entry_t));
-
-
-    cmdtbl->prdt_entry[0].dba = (uint64_t)buf;
-    cmdtbl->prdt_entry[0].dbc = 0x1ff;	// 8K bytes
-    cmdtbl->prdt_entry[0].i = 1;
-
-    // Setup command
-    fis_reg_h2d_t *cmdfis = (fis_reg_h2d_t*)&cmdtbl->cfis;
-    //fis_type_t t;
-    cmdfis->fis_type = FIS_TYPE_REG_H2D;
-    cmdfis->pmport = 0;
-    cmdfis->c = 1;	// Command
-    cmdfis->command = ATA_CMD_IDENTIFY;
-    cmdfis->featurel =1;
-    // The below loop waits until the port is no longer busy before issuing a new command
-    while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
-    {
-        spin++;
-    }
-    if (spin == 1000000)
-    {
-        kprintf("Port is hung\n");
-    }
-
-    port->ci = 1<<slot;	// Issue command
-
-    // Wait for completion
-    while (1)
-    {
-        // In some longer duration reads, it may be helpful to spin on the DPS bit
-        // in the PxIS port field as well (1 << 5)
-        if ((port->ci & (1<<slot)) == 0)
-            break;
-        if (port->is_rwc & HBA_PxIS_TFES)	// Task file error
-        {
-            kprintf("identify disk error\n");
-        }
-    }
-
-    // Check again
-    if (port->is_rwc & HBA_PxIS_TFES)
-    {
-        kprintf("identify disk error\n");
-    }
-
-}*/
-
 /*
  * Function:  read 
  * --------------------
@@ -116,7 +50,6 @@ int read(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, uin
     int slot = find_cmdslot(port);
     if (slot == -1)
         return 0;
-
     hba_cmd_header_t *cmdheader = (hba_cmd_header_t*)port->clb;
     cmdheader += slot;
     cmdheader->cfl = sizeof(fis_reg_h2d_t)/sizeof(uint32_t);	// Command FIS size
@@ -174,7 +107,6 @@ int read(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, uin
     }
 
     port->ci = 1<<slot;	// Issue command
-
     // Wait for completion
     while (1)
     {
@@ -212,7 +144,6 @@ int write(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, ui
     int slot = find_cmdslot(port);
     if (slot == -1)
         return 0;
-
     hba_cmd_header_t *cmdheader = (hba_cmd_header_t*)port->clb;
     cmdheader += slot;
     cmdheader->cfl = sizeof(fis_reg_h2d_t)/sizeof(uint32_t);	// Command FIS size
@@ -268,7 +199,6 @@ int write(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, ui
     }
 
     port->ci = 1<<slot;	// Issue command
-
     // Wait for completion
     while (1)
     {
@@ -282,7 +212,6 @@ int write(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, ui
             return 0;
         }
     }
-
     // Check again
     if (port->is_rwc & HBA_PxIS_TFES)
     {
@@ -366,7 +295,19 @@ void port_rebase(hba_port_t *port, int portno)
         cmdheader[i].ctba =cmdheader[i].ctba & 0x00000000ffffffff;
         memset((void*)cmdheader[i].ctba, 0, 256);
     }
-
+    
+    port->sctl |= 0x301;
+    for (int i=0;i<100000000;i++);
+    port->sctl &= 0xfffffffe;
+    for (int i=0;i<100000000;i++);
+    
+    port->cmd |= (HBA_PxCMD_SUD | HBA_PxCMD_POD | HBA_PxCMD_ICC);
+    for (int i=0;i<100000000;i++);
+    
+    port->serr_rwc = 0xffffffff;
+    for (int i=0;i<100000000;i++);
+    port->is_rwc = 0xffffffff;
+    for (int i=0;i<100000000;i++);
     start_cmd(port);	// Start command engine
 }
 
@@ -377,15 +318,6 @@ void port_rebase(hba_port_t *port, int portno)
  */
 static int check_type(hba_port_t *port)
 {
-    uint32_t ssts = port->ssts;
-
-    uint8_t ipm = (ssts >> 8) & 0x0F;
-    uint8_t det = ssts & 0x0F;
-    if (det != HBA_PORT_DET_PRESENT)	// Check drive status
-        return AHCI_DEV_NULL;
-    if (ipm != HBA_PORT_IPM_ACTIVE)
-        return AHCI_DEV_NULL;
-
     switch (port->sig)
     {
         case SATA_SIG_ATAPI:
@@ -394,9 +326,10 @@ static int check_type(hba_port_t *port)
             return AHCI_DEV_SEMB;
         case SATA_SIG_PM:
             return AHCI_DEV_PM;
-        default:
+        case SATA_SIG_ATA:
             return AHCI_DEV_SATA;
     }
+    return 0;
 }
 
 /*
@@ -408,8 +341,8 @@ void probe_port(hba_mem_t *abar)
 {
     // Search disk in impelemented ports
     uint32_t pi = abar->pi;
-    uint32_t *readbuf = (uint32_t *)0x300000;
-    uint32_t *writebuf = (uint32_t *)0x300400;
+    uint32_t *readbuf = (uint32_t *)0x210400;
+    uint32_t *writebuf = (uint32_t *)0x210000;
     int i = 0;
     while (i < 32)
     {
@@ -418,29 +351,31 @@ void probe_port(hba_mem_t *abar)
             int dt = check_type(&abar->ports[i]);
             if (dt == AHCI_DEV_SATA)
             {
-                // Taking second sata drive
-                if (i == 1)
+                kprintf("SATA found at %d ", i);
+                //abar->ghc |= (HBA_GHC_AE | HBA_GHC_IE | HBA_GHC_HR);
+                abar->ghc |= HBA_GHC_HR;
+                abar->ghc |= HBA_GHC_AE;
+                abar->ghc |= HBA_GHC_IE;
+                port_rebase(&abar->ports[i], i);
+                
+                //WRITE
+                for (int b = 0;b < 100;b++)
                 {
-                    kprintf("SATA drive found at port %d\n", i);
-                    abar->ghc = 0x80000003;
-                    port_rebase(&abar->ports[i], i);
-                    //identify_device(&abar->ports[i]);
-                    
-                    for (int b = 0;b < 100;b++)
-                    {
-                        memset(writebuf, b, 1024*sizeof(uint32_t));
-                        write(&abar->ports[i], 8 * b, 0, 8, writebuf);
-                    }
-
-                    for (int r =0;r < 100;r++)
-                    {
-                        memset(readbuf, 0, 1024*sizeof(uint32_t));
-                        read(&abar->ports[i], 8*r, 0, 8, readbuf);
-                        kprintf("%x", *readbuf);
-                    }
-                    break;
+                    memset(writebuf, b, 1024*sizeof(uint32_t));
+                    write(&abar->ports[i], 8 * b, 0, 8, writebuf);
                 }
+               
+                //READ
+                for (int r =0;r < 100;r++)
+                {
+                    memset(readbuf, 0, 1024*sizeof(uint32_t));
+                    read(&abar->ports[i], 8 * r, 0, 8, readbuf);
+                    //print from each block
+                    kprintf("%x", *readbuf);
+                }
+                break;
             }
+            
             else if (dt == AHCI_DEV_SATAPI)
             {
                 kprintf("SATAPI drive found at port %d\n", i);
@@ -453,10 +388,6 @@ void probe_port(hba_mem_t *abar)
             {
                 kprintf("PM drive found at port %d\n", i);
             }
-            /*else
-            {
-                kprintf("No drive found at port %d\n", i);
-            }*/
         }
 
         pi >>= 1;
@@ -487,6 +418,7 @@ uint32_t read_write_to_device(int bus, int device_no, int function, uint8_t offs
 void checkbus()
 {
     uint32_t abar_address, abar;
+    //uint32_t mask;
     int bus, device_no, function;
     uint32_t vendor_id = 0 , device_id = 0, sub_class_id = 0, class_id = 0;
     
@@ -516,7 +448,7 @@ void checkbus()
                     kprintf("Class Id: %x\n", class_id);
                     kprintf("Sub Class Id: %x\n", sub_class_id);
                     
-                    // Remapping ABAR address
+                    //Remapping ABAR
                     abar_address = (uint32_t)((bus << 16) | (device_no << 11) |
                                           (function << 8) | (0x24 & 0xfc) | ((uint32_t) 0x80000000));
                     __asm__ volatile ( "outl %0, %1" : : "a"(abar_address), "Nd"((uint16_t) 0xCF8));
@@ -526,13 +458,12 @@ void checkbus()
                     __asm__ volatile ( "inl %1, %0": "=a"(abar): "Nd"((uint16_t)(0xCFC)));
                     uint64_t abar_64 = abar & 0xffffffffffffffff;
                     hba_mem_t* ahci_memory = (hba_mem_t *)abar_64;
-                    /*kprintf("value of abar is %x\n",ahci_memory1);
-                    kprintf("value of abar cap is %x\n",ahci_memory1->cap);
-                    kprintf("value of abar pi is %x\n",ahci_memory1->pi);*/
+                    
+                    //check for port implementation
                     probe_port(ahci_memory);
                 }
             }
         }
     }
-    kprintf("Finished!!");
+    
 }
