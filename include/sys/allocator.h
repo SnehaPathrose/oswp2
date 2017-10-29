@@ -6,5 +6,6 @@
 #define OSWP2_ALLOCATOR_H
 void initbump(void *physfree, void *physend);
 void *bump(uint64_t size);
+void *get_unallocated();
 
 #endif //OSWP2_ALLOCATOR_H

@@ -7,7 +7,7 @@ void *unallocated;
 void *end;
 void initbump(void *physfree, void *physend) {
     unallocated = physfree;
-    end=physend;
+    end = physend;
 }
 
 void *bump(uint64_t size)
@@ -21,5 +21,9 @@ void *bump(uint64_t size)
         unallocated = unallocated+size;
     }
     return ret;
+}
+
+void *get_unallocated() {
+    return unallocated;
 }
 
