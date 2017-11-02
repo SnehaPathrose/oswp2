@@ -1,6 +1,8 @@
 #include <sys/kprintf.h>
 #include <sys/idt.h>
 #include <sys/defs.h>
+#include <sys/virtualmem.h>
+
 #define MAX_IDT 255
 
 struct idtr_t {
@@ -43,7 +45,7 @@ static long mscount = 0; // count in timer frequency
  * Calculates the time in hh:mm:ss format
  */
 void handletime() {
-    register char *temp2 = (char *)0xb8f90;
+    register char *temp2 = (char *)(KERNBASE + 0xb8f90);
     int intvalue, i = 0, rem[2];
     rem[0] = 0 + '0';
     rem[1] = 0 + '0';
@@ -148,7 +150,7 @@ void interrupt0() {
  * Also keeps track of control, shift and capslock characters through control flag
  */
 void interrupt1() {
-    register char *temp2 = (char *)0xb8ef0;
+    register char *temp2 = (char *)(KERNBASE + 0xb8ef0);
     uint8_t keyscancode;
     __asm__ volatile ( "inb %1, %0": "=a"(keyscancode): "Nd"(0x60) );
 
@@ -156,7 +158,7 @@ void interrupt1() {
     {
         temp2 += 2;
         *temp2 = ' ';
-        temp2 = (char *)0xb8ef0;
+        temp2 = (char *)(KERNBASE + 0xb8ef0);
         if (keyscancode == 58) //caps lock
         {
             if (controlflag & 0x01)

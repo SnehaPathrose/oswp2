@@ -1,6 +1,7 @@
 #include <sys/kprintf.h>
+#include <sys/virtualmem.h>
 
-static char* outputstring = (char*)0xb8000;
+static char* outputstring = (char*)(KERNBASE + 0xb8000);
 /*
  * Function:  getargument 
  * --------------------

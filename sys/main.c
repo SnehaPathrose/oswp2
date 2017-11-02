@@ -13,6 +13,11 @@
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
 uint32_t* loader_stack;
 extern char kernmem, physbase;
+uint32_t page_index = 0;
+uint32_t page_num = 0;
+uint64_t length = 0;
+uint32_t first = 0;
+uint64_t end;
 
 void start(uint32_t *modulep, void *physbase, void *physfree)
 {
@@ -20,38 +25,48 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
         uint64_t base, length;
         uint32_t type;
     }__attribute__((packed)) *smap;
+    //list_free = temp_free;
     uint64_t physend = 0;
+    end=KERNBASE+(uint64_t)physfree;
     //register char *temp2, *temp1;
     //uint64_t i = 0;
     //struct page_linked_struct *temp_free_list = &free_list;
     while(modulep[0] != 0x9001) modulep += modulep[1]+2;
     for(smap = (struct smap_t*)(modulep+2); smap < (struct smap_t*)((char*)modulep+modulep[1]+2*4); ++smap) {
         if (smap->type == 1 /* memory */ && smap->length != 0) {
+            length = smap->length;
+            page_num = length >> 12;
+            page_index = (uint32_t)((smap->base) >> 12);
+            kprintf("smaplength is %x, smapbase is %x\n", smap->length,
+                   smap->base);
             kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
+
             if ((uint64_t)physfree>smap->base && (uint64_t)physfree<(smap->base + smap->length))
                 physend = smap->base + smap->length;
-            /*if (smap->base >= physfree || ((smap->base + smap->length) > physfree)) {
-
-                for (i = smap->base; i <= (smap->base + smap->length) && i > physfree; i++) {
-                    temp_free_list->page = i;
-                    temp_free_list = temp_free_list->next;
-                }
-            }*/
         }
     }
     kprintf("physfree %p\n", (uint64_t)physfree);
     kprintf("Kernmem %p\n", (uint64_t)kernmem);
+    //kprintf("page_num=%x\n", page_num);
+    //kprintf("page_index=%x\n", page_index);
     kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
-    initbump(physfree, (void *)physend);
-    pml4t_table = (struct page_table_struct*)bump(512 * sizeof(struct page_table_struct));
-    //pml4t_table->present = 1;
-    //first_pml4t = (struct pml4t*)physfree;
+    initbump(physbase, physfree, (void *)physend);
+    //int size = (uint64_t)get_unallocated();
+    //int size = 0x2000000;
+    //kprintf("\nsize first %d %d",size,size/4096);
+    pml4t_t = (struct pml4t*)bump(sizeof(struct pml4t));
+    //kprintf("pml4t %x", pml4t_t);
     init_paging(physbase, physfree);
-    __asm__("\t mov %0, %%rax\n" : "=r"(pml4t_table));
-    __asm__("\t mov %rax,%cr3\n" );
-    /*__asm__("\t mov %cr0,%rax\n" );
+    uint64_t abc = (uint64_t)pml4t_t - KERNBASE;
+    __asm volatile("mov %0, %%cr3":: "r"(abc));
+    __asm__("\t mov %cr0,%rax\n" );
     __asm__("\t or $0x80000000, %eax\n" );
-    __asm__("\t mov %rax, %cr0\n" );*/
+    __asm__("\t mov %rax, %cr0\n" );
+    char *temp2;
+
+    for(temp2 = (char*)(KERNBASE + 0xb8001); temp2 < (char*)((KERNBASE + 0xb8000)+160*25); temp2 += 2) *temp2 = 7;
+    kprintf("Hello");
+    //checkbus();
     /*for(
             temp1 = "Last pressed glyph", temp2 = (char*)(0xb8ec2);
             *temp1;
@@ -72,6 +87,8 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     while(1);
 }
 
+
+
 void boot(void)
 {
     // note: function changes rsp, local stack variables can't be practically used
@@ -86,9 +103,9 @@ void boot(void)
     :"r"(&initial_stack[INITIAL_STACK_SIZE])
     );
     init_gdt();
-    //init_idt();
-    //init_pic();
-    //__asm__("sti;");
+    init_idt();
+    init_pic();
+    __asm__("sti;");
 
     start(
             (uint32_t*)((char*)(uint64_t)loader_stack[3] + (uint64_t)&kernmem - (uint64_t)&physbase),

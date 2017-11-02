@@ -4,7 +4,11 @@
 
 #ifndef OSWP2_ALLOCATOR_H
 #define OSWP2_ALLOCATOR_H
-void initbump(void *physfree, void *physend);
+struct free_list {
+    uint64_t current;
+    struct free_list *next;
+} *head_free;
+void initbump(void *physbase, void *physfree, void *physend);
 void *bump(uint64_t size);
 void *get_unallocated();
 
