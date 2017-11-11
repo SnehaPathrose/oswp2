@@ -232,6 +232,86 @@ void interrupt3() {
     __asm__( "\tiretq\n");
 };
 
+void interrupt5(struct pt_regs *regs, unsigned long error_code) {
+    kprintf("General Protection Fault\n");
+
+    uint64_t faultAddr;
+    uint64_t cr3;
+
+    __asm volatile("mov %%cr2, %0" : "=r" (faultAddr));
+    __asm volatile("mov %%cr3, %0" : "=r" (cr3));
+
+    kprintf("\n gpf cr3 %p\n", cr3);
+    kprintf("\n gpf cr2 %p\n", faultAddr);
+
+    while(1);
+    __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
+    __asm__( "\tiretq\n");
+};
+
+
+/*
+ * Function:  interrupt4
+ * --------------------
+ * Interrupt handler for all the interrupts other than 0 and 1
+ * Any interrupts which arise are simply acknowledged
+ */
+void interrupt4(struct pt_regs *regs) {
+    //kprintf("Hello there");
+    //__asm__ volatile ( "push_al");
+    //__asm__("cli;");
+    uint64_t *arg1 = 0/*, arg2 = 0*/;
+    /*__asm__( "\t mov $0,%rsi\n");
+    __asm__( "\t mov %cr2,%rsi\n");
+    __asm__( "\t mov %%rsi,%0\n" : "=m"(arg1));*/
+    __asm__ volatile ( "movq %%cr2, %0;" :"=a"(arg1) );
+    //arg1 = arg1 + 0xffffffff80000000;
+    //uint64_t *arg3 = (uint64_t*)arg1;
+    __asm__ volatile ( "pushq %rdi ");
+    __asm__ volatile ( "pushq %rax ");
+    __asm__ volatile ( "pushq %rbx ");
+    __asm__ volatile ( "pushq %rcx ");
+    __asm__ volatile ( "pushq %rdx ");
+    __asm__ volatile ( "pushq %rbp ");
+    __asm__ volatile ( "pushq %rsi ");
+    __asm__ volatile ( "pushq %r8 ");
+    __asm__ volatile ( "pushq %r9 ");
+    __asm__ volatile ( "movq %rsp,%rdi ");
+    //kprintf("Arg1: %x", arg1);
+    /*__asm__("\tpush %rax\n");
+    __asm__("\tpush %rcx\n");
+    __asm__("\tpush %rdx\n");
+    __asm__("\tpush %rsi\n");
+    __asm__("\tpush %rdi\n");
+    __asm__("\tpush %r8\n");
+    __asm__("\tpush %r9\n");*/
+    map_address( (uint64_t)arg1, (uint64_t)((uint64_t)arg1 - KERNBASE));
+    /*__asm__("\tpop %r9\n");
+    __asm__("\tpop %r8\n");
+    __asm__("\tpop %rdi\n");
+    __asm__("\tpop %rsi\n");
+    __asm__("\tpop %rdx\n");
+    __asm__("\tpop %rcx\n");
+    __asm__("\tpop %rax\n");
+    __asm__("\tpop %r11\n");
+    __asm__ volatile ( "addq $8 ,%rsp ");*/
+    __asm__ volatile ( "popq %r9 ");
+    __asm__ volatile ( "popq %r8 ");
+    __asm__ volatile ( "popq %rsi ");
+    __asm__ volatile ( "popq %rbp ");
+    __asm__ volatile ( "popq %rdx ");
+    __asm__ volatile ( "popq %rcx ");
+    __asm__ volatile ( "popq %rbx ");
+    __asm__ volatile ( "popq %rax ");
+    __asm__ volatile ( "popq %rdi ");
+    __asm__ volatile ( "addq $16 ,%rsp ");
+    //__asm__( "\t addq $0x8, %rsp\n");
+    //__asm__( "\t mov %%rax,%0\n" : "=m"(arg2));
+    //__asm__("sti;");
+    __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
+    __asm__( "\tiretq\n");
+};
+
 /*
  * Function:  init_idt
  * --------------------
@@ -243,6 +323,26 @@ void init_idt() {
 
     // Exceptions 0 - 31
     for(int i = 0; i < 32; i++) {
+        if (i == 14) {
+            idt[i].offset_1 = (uint64_t)&interrupt4;
+            idt[i].offset_2 = (uint64_t)&interrupt4 >> 16;
+            idt[i].offset_3 = (uint64_t)&interrupt4 >> 32;
+            idt[i].zero = 0;
+            idt[i].ist = 0;
+            idt[i].selector = 8;
+            idt[i].type_attr = 0x8e;
+            continue;
+        }
+        if (i == 13) {
+            idt[i].offset_1 = (uint64_t)&interrupt5;
+            idt[i].offset_2 = (uint64_t)&interrupt5 >> 16;
+            idt[i].offset_3 = (uint64_t)&interrupt5 >> 32;
+            idt[i].zero = 0;
+            idt[i].ist = 0;
+            idt[i].selector = 8;
+            idt[i].type_attr = 0x8e;
+            continue;
+        }
         idt[i].offset_1 = (uint64_t)&interrupt2;
         idt[i].offset_2 = (uint64_t)&interrupt2 >> 16;
         idt[i].offset_3 = (uint64_t)&interrupt2 >> 32;

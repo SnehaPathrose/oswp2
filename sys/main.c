@@ -8,11 +8,22 @@
 #include <sys/pci.h>
 #include <sys/virtualmem.h>
 #include <sys/allocator.h>
+#include <sys/contextswitch.h>
 
 #define INITIAL_STACK_SIZE 4096
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
 uint32_t* loader_stack;
 extern char kernmem, physbase;
+
+void abc() {
+    kprintf("Test Thread");
+}
+void switch_to(struct PCB *me, struct PCB *next) {
+    __asm__ volatile("\t push %rdi\n" );
+    __asm__ volatile("\t mov %rsp, 10(%rdi)\n" );
+    __asm__ volatile("\t mov 10(%rsi), %rsp\n" );
+    __asm__ volatile("\t pop %rdi\n" );
+}
 
 void start(uint32_t *modulep, void *physbase, void *physfree)
 {
@@ -32,12 +43,17 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
                 physend = smap->base + smap->length;
         }
     }
+
     kprintf("physfree %p\n", (uint64_t)physfree);
     kprintf("Kernmem %p\n", (uint64_t)kernmem);
     kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
     initbump(physbase, physfree, (void *)physend);
     pml4t_t = (struct pml4t*)bump(sizeof(struct pml4t));
-    init_paging(physbase, physfree);
+    for (int i = 0; i < 512; i++) {
+        pml4t_t->PML4Entry[i].page_value = 0x0;
+    }
+    init_paging(physfree);
+    kprintf("Current unallocated %x", get_unallocated());
     uint64_t pml4t_t_phy = (uint64_t)pml4t_t - KERNBASE;
     __asm volatile("mov %0, %%cr3":: "r"(pml4t_t_phy));
     __asm__("\t mov %cr0,%rax\n" );
@@ -47,6 +63,38 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
 
     for(temp2 = (char*)(KERNBASE + 0xb8001); temp2 < (char*)((KERNBASE + 0xb8000)+160*25); temp2 += 2) *temp2 = 7;
     kprintf("Hello");
+    /*struct task_struct *current_task = bump(sizeof(struct task_struct));
+    struct mm_struct *current_mm = bump(sizeof(struct mm_struct));
+    struct vm_area_struct *current_vma = bump(sizeof(struct vm_area_struct));
+    current_task->active_mm = current_mm;
+    current_task->mm = current_mm;
+    current_mm->list_of_vmas = current_vma;
+    current_mm->num_of_vmas = 1;
+    current_mm->page_table = pml4t_t_phy;
+    current_vma->vma_start = (uint64_t)bump(4096);
+    current_vma->vma_end = current_vma->vma_start + 4096;
+    current_vma->next = NULL;
+    current_vma->prev = NULL;
+
+    struct task_struct *second_thread = bump(sizeof(struct task_struct));
+    second_thread->active_mm = current_mm;
+    second_thread->mm = current_mm;*/
+    //kprintf("Current unallocated %x", get_unallocated());
+    struct PCB *curr_task = bump(sizeof(struct PCB));
+    curr_task->kstack = (uint8_t*)&initial_stack;
+    curr_task->state = 1;
+    curr_task->pid = 1;
+    uint64_t arg1 = 0;
+    __asm__("\t mov %%rsp,%0\n" : "=m"(arg1));
+    curr_task->rsp = arg1;
+    struct PCB *next_task = bump(sizeof(struct PCB));
+    next_task->state = 2;
+    /*//next_task->kstack = bump(4096 * sizeof(next_task->kstack));
+    void (*fun1)() = &abc;
+
+    next_task->pid = 2;
+    next_task->rsp = (uint64_t)fun1;*/
+    //switch_to(curr_task, next_task);
     //checkbus();
     /*for(
             temp1 = "Last pressed glyph", temp2 = (char*)(0xb8ec2);

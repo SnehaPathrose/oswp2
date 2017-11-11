@@ -10,6 +10,6 @@ struct free_list {
 } *head_free;
 void initbump(void *physbase, void *physfree, void *physend);
 void *bump(uint64_t size);
-void *get_unallocated();
+uint64_t get_unallocated();
 
 #endif //OSWP2_ALLOCATOR_H

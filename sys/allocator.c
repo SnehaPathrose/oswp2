@@ -57,7 +57,8 @@ void initbump(void *physbase, void *physfree, void *physend) {
 
 void *bump(uint64_t size)
 {
-    void *ret;
+    uint64_t ret;
+    head_free = (struct free_list*)((uint64_t)head_free + KERNBASE);
     num_of_pages = size / 4096;
     if (((size / 4096) * 4096) < size) {
         num_of_pages++;
@@ -67,17 +68,17 @@ void *bump(uint64_t size)
         return 0;
     }
     else {
-        ret = (void *)head_free->current;
+        ret = head_free->current;
         while (num_of_pages != 0) {
             head_free = head_free->next;
             num_of_pages--;
             number_of_free_pages--;
         };
     }
-    return ret + KERNBASE;
+    return (void *)(ret + KERNBASE);
 }
 
-void *get_unallocated() {
-    return (void *)head_free->current;
+uint64_t get_unallocated() {
+    return ((struct free_list*)((uint64_t)head_free + KERNBASE))->current;
 }
 
