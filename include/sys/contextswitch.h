@@ -42,10 +42,12 @@ struct thread {
 };
 
 struct PCB {
-    uint8_t *kstack;
+    uint64_t kstack[400];
     uint64_t pid;
     uint64_t rsp;
     enum { RUNNING, SLEEPING, ZOMBIE } state;
     int exit_status;
 };
+
+void schedule(struct PCB *);
 #endif //COURSEPROJ_CONTEXTSWITCH_H

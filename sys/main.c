@@ -14,17 +14,17 @@
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
 uint32_t* loader_stack;
 extern char kernmem, physbase;
-
-void abc() {
+extern void switch_to(struct PCB *, struct PCB *);
+void pdef() {
     kprintf("Test Thread");
 }
-void switch_to(struct PCB *me, struct PCB *next) {
+/*void switch_to(struct PCB *me, struct PCB *next) {
     __asm__ volatile("\t push %rdi\n" );
     __asm__ volatile("\t mov %rsp, 10(%rdi)\n" );
     __asm__ volatile("\t mov 10(%rsi), %rsp\n" );
     __asm__ volatile("\t pop %rdi\n" );
 }
-
+*/
 void start(uint32_t *modulep, void *physbase, void *physfree)
 {
     struct smap_t {
@@ -63,6 +63,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
 
     for(temp2 = (char*)(KERNBASE + 0xb8001); temp2 < (char*)((KERNBASE + 0xb8000)+160*25); temp2 += 2) *temp2 = 7;
     kprintf("Hello");
+    //int i,j;
     /*struct task_struct *current_task = bump(sizeof(struct task_struct));
     struct mm_struct *current_mm = bump(sizeof(struct mm_struct));
     struct vm_area_struct *current_vma = bump(sizeof(struct vm_area_struct));
@@ -81,19 +82,26 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     second_thread->mm = current_mm;*/
     //kprintf("Current unallocated %x", get_unallocated());
     struct PCB *curr_task = bump(sizeof(struct PCB));
-    curr_task->kstack = (uint8_t*)&initial_stack;
-    curr_task->state = 1;
-    curr_task->pid = 1;
+   // kprintf("\ninitial stack %s",(char *)initial_stack);
+    //for(i=4095,j=399;initial_stack[i]!=0x0;j--,i--)
+        //curr_task->kstack[j]=initial_stack[i];
+    //curr_task->kstack[] = (char *) &initial_stack;
     uint64_t arg1 = 0;
     __asm__("\t mov %%rsp,%0\n" : "=m"(arg1));
     curr_task->rsp = arg1;
     struct PCB *next_task = bump(sizeof(struct PCB));
-    next_task->state = 2;
+    void (*fun1)() = &pdef;
+    kprintf("%x",*(fun1));
+   //next_task->kstack = bump(sizeof(uint64_t)*5);
+   next_task->kstack[399] = (uint64_t)fun1;
+    next_task->rsp= (uint64_t) &(next_task->kstack[399]);
+    kprintf("addreses %x %x %x\n",next_task,&(next_task->kstack[399]),next_task->kstack[399]);
+   switch_to(curr_task,next_task);
+    kprintf("back");
+    //fun1();
+    //schedule(curr_task);
     /*//next_task->kstack = bump(4096 * sizeof(next_task->kstack));
-    void (*fun1)() = &abc;
-
-    next_task->pid = 2;
-    next_task->rsp = (uint64_t)fun1;*/
+    */
     //switch_to(curr_task, next_task);
     //checkbus();
     /*for(

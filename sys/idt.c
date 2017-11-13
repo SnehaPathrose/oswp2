@@ -276,7 +276,7 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "pushq %rsi ");
     __asm__ volatile ( "pushq %r8 ");
     __asm__ volatile ( "pushq %r9 ");
-    __asm__ volatile ( "movq %rsp,%rdi ");
+    //__asm__ volatile ( "movq %rsp,%rdi ");
     //kprintf("Arg1: %x", arg1);
     /*__asm__("\tpush %rax\n");
     __asm__("\tpush %rcx\n");

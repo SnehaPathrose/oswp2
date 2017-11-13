@@ -46,6 +46,7 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
     struct pt* page_table = 0;
     struct pdt* page_directory = 0;
     struct pdpt* pdpt = 0;
+    //uint64_t newaddress;
 
     if ((pml4t_t->PML4Entry[pml4t_index].page_value & 0x0000000000000001) == 0x0){
         pdpt = bump(sizeof(struct pdpt));
@@ -95,8 +96,10 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
 
     for(; size >= 0; map_phy_address+=4096, size-=4096, pt_index++){
         if (pt_index == 512) {
+            //newaddress = KERNBASE + map_phy_address;
             pt_index = 0;
             pdt_index++;
+            //pdt_index=(newaddress >> 21) & 0x00000000000001ff;
             page_table = bump(sizeof(struct pt));
             for (int j = 0; j < 512; j++) {
                 page_table->PageEntry[j].page_value = 0x0;
@@ -107,7 +110,7 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
             page_table->PageEntry[pt_index].page_value = map_phy_address|3;     // mark page present.
         }
         else {
-            kprintf("Already Mapped");
+            //kprintf("Already Mapped");
         }
 
     }
