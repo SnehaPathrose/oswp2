@@ -16,15 +16,15 @@ uint32_t* loader_stack;
 extern char kernmem, physbase;
 extern void switch_to(struct PCB *, struct PCB *);
 void pdef() {
-    kprintf("Test Thread");
+    kprintf("test thread");
 }
 /*void switch_to(struct PCB *me, struct PCB *next) {
-    __asm__ volatile("\t push %rdi\n" );
-    __asm__ volatile("\t mov %rsp, 10(%rdi)\n" );
-    __asm__ volatile("\t mov 10(%rsi), %rsp\n" );
+    __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(next->kstack[398]));
+    __asm__ volatile("\t push %%rdi\n" );
+    __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(me->rsp) );
+    __asm__ volatile("\t mov %0, %%rsp\n" : "m"(next->rsp) );
     __asm__ volatile("\t pop %rdi\n" );
-}
-*/
+}*/
 void start(uint32_t *modulep, void *physbase, void *physfree)
 {
     struct smap_t {
@@ -93,9 +93,10 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     void (*fun1)() = &pdef;
     kprintf("%x",*(fun1));
    //next_task->kstack = bump(sizeof(uint64_t)*5);
-   next_task->kstack[399] = (uint64_t)fun1;
-    next_task->rsp= (uint64_t) &(next_task->kstack[399]);
-    kprintf("addreses %x %x %x\n",next_task,&(next_task->kstack[399]),next_task->kstack[399]);
+   next_task->kstack[398] = (uint64_t)fun1;
+    next_task->rsp= (uint64_t) &(next_task->kstack[398]);
+    kprintf("addreses %x %x %x\n",next_task,&(next_task->kstack[398]),next_task->kstack[399]);
+  //  pdef();
    switch_to(curr_task,next_task);
     kprintf("back");
     //fun1();
