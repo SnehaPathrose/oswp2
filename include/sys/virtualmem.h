@@ -100,7 +100,10 @@ struct pt_regs {
 
 void init_paging(void *physfree);
 void map_address(uint64_t address, uint64_t map_phy_address);
+struct pml4t* map_user_pml4();
+void map_user_address(uint64_t address, uint64_t map_phy_address, int size_to_map, struct pml4t *map_table);
 
 #define	KERNBASE	0xffffffff80000000
+#define	USERBASE	0xFFFFCCCC00000000
 
 #endif //COURSEPROJ_VIRTUALMEM_H

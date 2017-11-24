@@ -1,5 +1,6 @@
 #include <sys/defs.h>
 #include <sys/gdt.h>
+#include <sys/io.h>
 
 /* adapted from Chris Stones, shovelos */
 
@@ -70,6 +71,33 @@ static struct tss_t tss;
 
 void _x86_64_asm_lgdt(struct gdtr_t *gdtr, uint64_t cs_idx, uint64_t ds_idx);
 void _x86_64_asm_ltr(uint64_t tss_idx);
+
+/*void switch_to_ring_3(struct PCB *tss1) {
+
+    set_tss_rsp(&tss1->kstack[399]);
+    uint64_t pml4 = (uint64_t)tss1->page_table & ~0xFFF;
+    __asm volatile("mov %0, %%cr3":: "r"(pml4));
+    __asm__ volatile("\t mov $0x23,%ax\n");
+    __asm__ volatile("\t mov %ax,%ds\n");
+    __asm__ volatile("\t mov %ax,%es\n");
+    __asm__ volatile("\t mov %ax,%fs\n");
+    __asm__ volatile("\t mov %ax,%gs\n");
+    __asm__ volatile("\t pushq $0x23\n" );
+    tss1->kstack[399] = 0x23;
+    __asm__ volatile("\t movq %0,%%rax\n" : "=r"(tss1->rsp) );
+    __asm__ volatile("\t pushq %rax\n" );
+    tss1->kstack[398] = tss1->rsp;
+    __asm__ volatile("\t pushfq\n" );
+    __asm__ volatile("\t popq %rax\n" );
+    __asm__ volatile("\t movq %%rax,%0\n" : "=r"(tss1->kstack[397]) );
+    __asm__ volatile("\t pushq %rax\n" );
+    __asm__ volatile("\t pushq $0x2b\n" );
+    tss1->kstack[396] = 0x2b;
+    __asm__ volatile("\t push %0\n" : "=m"(tss1->gotoaddr) );
+    tss1->kstack[395] = tss1->gotoaddr;
+    __asm__ volatile("\t iretq\n" );
+}*/
+
 void init_gdt() {
     struct sys_segment_descriptor *sd = (struct sys_segment_descriptor*)&gdt[6]; // 7th&8th entry in GDT
     sd->sd_lolimit = sizeof(struct tss_t) - 1;
@@ -80,7 +108,7 @@ void init_gdt() {
     sd->sd_hilimit = 0;
     sd->sd_gran = 0;
     sd->sd_hibase = ((uint64_t)&tss) >> 24;
-
+    kprintf("Size of gdt: %d", sizeof(gdt[0]));
     _x86_64_asm_lgdt(&gdtr, 8, 16);
     _x86_64_asm_ltr(0x30);
 }

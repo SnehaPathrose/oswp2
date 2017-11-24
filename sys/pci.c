@@ -1,22 +1,8 @@
 #include <sys/defs.h>
-#include <sys/kprintf.h>
+#include <sys/io.h>
 #include <sys/pci.h>
 #include <sys/ahci.h>
-
-/*
- * Function:  memset 
- * --------------------
- * Write size number of bytes with value num at the locatio starting
- * from s
- */
-void memset(void* s, int num, int size)
-{
-    unsigned char *uc =s;
-    for (int i = 0; i < size; i++) {
-        *uc = (unsigned char)num;
-        uc++;
-    }
-}
+#include <sys/klibc.h>
 
 /*
  * Function:  find_cmdslot 
@@ -136,7 +122,7 @@ int read(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, uin
  * Write to a device from AHCI <port> from <starth:startl> to <count> size
  * and store it in <buf>
  */
-int write(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, uint32_t *buf)
+int write_to_disk(hba_port_t *port, uint32_t startl, uint32_t starth, uint32_t count, uint32_t *buf)
 {
     hba_cmd_tbl_t *cmdtbl;
     port->is_rwc = (uint32_t)-1;		// Clear pending interrupt bits
@@ -362,7 +348,7 @@ void probe_port(hba_mem_t *abar)
                 for (int b = 0;b < 100;b++)
                 {
                     memset(writebuf, b, 1024*sizeof(uint32_t));
-                    write(&abar->ports[i], 8 * b, 0, 8, writebuf);
+                    write_to_disk(&abar->ports[i], 8 * b, 0, 8, writebuf);
                 }
                
                 //READ

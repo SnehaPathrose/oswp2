@@ -1,7 +1,8 @@
-#include <sys/kprintf.h>
 #include <sys/idt.h>
 #include <sys/defs.h>
 #include <sys/virtualmem.h>
+#include <sys/io.h>
+#include <sys/syscall.h>
 
 #define MAX_IDT 255
 
@@ -21,7 +22,7 @@ struct idtr_item {
 }__attribute__((packed));
 
 struct idtr_item idt[MAX_IDT];
-const static int scantochar[100] = { '\0','\0','1','2','3','4','5','6','7','8','9','0','\0','\0','\0','\0',
+/*const static int scantochar[100] = { '\0','\0','1','2','3','4','5','6','7','8','9','0','\0','\0','\0','\0',
                              'q','w','e','r','t','y','u','i','o','p','\0','\0','\0','\0',
                              'a','s','d','f','g','h','j','k','l','\0','\0','\0','\0','\0','z','x',
                              'c','v','b','n','m' };
@@ -32,8 +33,8 @@ const static int scantoUchar[100] = { '\0','\0','!','@','#','$','%','^','&','*',
 const static int scantoCchar[100] = { '\0','\0','1','2','3','4','5','6','7','8','9','0','\0','\0','\0','\0',
                                    'Q','W','E','R','T','Y','U','I','O','P','\0','\0','\0','\0',
                                    'A','S','D','F','G','H','J','K','L','\0','\0','\0','\0','\0','Z','X',
-                                   'C','V','B','N','M' };
-static int controlflag = 0x00;
+                                   'C','V','B','N','M' };*/
+//static int controlflag = 0x00;
 static int scount = 0;   // count in seconds
 static int mcount = 0;   // count in minutes
 static int hcount = 0;   // count in hours
@@ -150,11 +151,28 @@ void interrupt0() {
  * Also keeps track of control, shift and capslock characters through control flag
  */
 void interrupt1() {
-    register char *temp2 = (char *)(KERNBASE + 0xb8ef0);
+    //register char *temp2 = (char *)(KERNBASE + 0xb8ef0);
     uint8_t keyscancode;
+    //char retval[3];
     __asm__ volatile ( "inb %1, %0": "=a"(keyscancode): "Nd"(0x60) );
 
-    if ((keyscancode & 0x80) == 0)
+    __asm__("\tpush %rax\n");
+    __asm__("\tpush %rcx\n");
+    __asm__("\tpush %rdx\n");
+    __asm__("\tpush %rsi\n");
+    __asm__("\tpush %rdi\n");
+    __asm__("\tpush %r8\n");
+    __asm__("\tpush %r9\n");
+    kscanf(keyscancode);
+    __asm__("\tpop %r9\n");
+    __asm__("\tpop %r8\n");
+    __asm__("\tpop %rdi\n");
+    __asm__("\tpop %rsi\n");
+    __asm__("\tpop %rdx\n");
+    __asm__("\tpop %rcx\n");
+    __asm__("\tpop %rax\n");
+    __asm__("\tpop %r11\n");
+    /*if ((keyscancode & 0x80) == 0)
     {
         temp2 += 2;
         *temp2 = ' ';
@@ -202,7 +220,7 @@ void interrupt1() {
                 *temp2 = scantochar[keyscancode];
             }
         }
-    }
+    }*/
 
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
     __asm__( "\tiretq\n");
@@ -232,7 +250,37 @@ void interrupt3() {
     __asm__( "\tiretq\n");
 };
 
-void interrupt5(struct pt_regs *regs, unsigned long error_code) {
+/*
+ * Function:  interrupt_syscall
+ * --------------------
+ * Interrupt handler for all syscalls
+ */
+void interrupt_syscall() {
+    __asm__("\tpush %rax\n");
+    __asm__("\tpush %rbx\n");
+    __asm__("\tpush %rcx\n");
+    __asm__("\tpush %rdx\n");
+    __asm__("\tpush %rdi\n");
+    __asm__("\tpush %rsi\n");
+    __asm__("\tpush %rbp\n");
+    syscall_handler();
+    // get the saved registers
+    __asm__("\tpop %rbp\n");
+    __asm__("\tpop %rsi\n");
+    __asm__("\tpop %rdi\n");
+    __asm__("\tpop %rdx\n");
+    __asm__("\tpop %rcx\n");
+    __asm__("\tpop %rbx\n");
+    __asm__("\tpop %rax\n");
+    __asm__("\taddq $8,%rsp\n");
+    __asm__ volatile ("movq %rax,%r9");
+    __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
+    __asm__ volatile ("movq %r9,%rax");
+    __asm__( "\tiretq\n");
+
+}
+
+void interrupt5() {
     kprintf("General Protection Fault\n");
 
     uint64_t faultAddr;
@@ -264,7 +312,7 @@ void interrupt4(struct pt_regs *regs) {
     /*__asm__( "\t mov $0,%rsi\n");
     __asm__( "\t mov %cr2,%rsi\n");
     __asm__( "\t mov %%rsi,%0\n" : "=m"(arg1));*/
-    __asm__ volatile ( "movq %%cr2, %0;" :"=a"(arg1) );
+
     //arg1 = arg1 + 0xffffffff80000000;
     //uint64_t *arg3 = (uint64_t*)arg1;
     __asm__ volatile ( "pushq %rdi ");
@@ -285,6 +333,7 @@ void interrupt4(struct pt_regs *regs) {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %r8\n");
     __asm__("\tpush %r9\n");*/
+    __asm__ volatile ( "movq %%cr2, %0;" :"=a"(arg1) );
     map_address( (uint64_t)arg1, (uint64_t)((uint64_t)arg1 - KERNBASE));
     /*__asm__("\tpop %r9\n");
     __asm__("\tpop %r8\n");
@@ -306,9 +355,10 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "popq %rdi ");
     __asm__ volatile ( "addq $16 ,%rsp ");
     //__asm__( "\t addq $0x8, %rsp\n");
-    //__asm__( "\t mov %%rax,%0\n" : "=m"(arg2));
+    __asm__( "\t movq %rax,%r9\n");
     //__asm__("sti;");
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
+    __asm__( "\t movq %r9,%rax\n");
     __asm__( "\tiretq\n");
 };
 
@@ -372,6 +422,17 @@ void init_idt() {
 
     // Interrupts 34 - 255
     for(int i = 34; i < 256; i++) {
+        // syscalls
+        if (i == 128) {
+            idt[i].offset_1 = (uint64_t)&interrupt_syscall;
+            idt[i].offset_2 = (uint64_t)&interrupt_syscall >> 16;
+            idt[i].offset_3 = (uint64_t)&interrupt_syscall >> 32;
+            idt[i].zero = 0;
+            idt[i].ist = 0;
+            idt[i].selector = 8;
+            idt[i].type_attr = 0xee;
+            continue;
+        }
         idt[i].offset_1 = (uint64_t)&interrupt3;
         idt[i].offset_2 = (uint64_t)&interrupt3 >> 16;
         idt[i].offset_3 = (uint64_t)&interrupt3 >> 32;

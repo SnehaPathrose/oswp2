@@ -1,6 +1,6 @@
 #include <sys/defs.h>
 #include <sys/gdt.h>
-#include <sys/kprintf.h>
+#include <sys/io.h>
 #include <sys/tarfs.h>
 #include <sys/ahci.h>
 #include <sys/idt.h>
@@ -9,15 +9,19 @@
 #include <sys/virtualmem.h>
 #include <sys/allocator.h>
 #include <sys/contextswitch.h>
+#include <sys/fs.h>
 
 #define INITIAL_STACK_SIZE 4096
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
 uint32_t* loader_stack;
 extern char kernmem, physbase;
 extern void switch_to(struct PCB *, struct PCB *);
+
 void pdef() {
-    kprintf("test thread");
+    __asm__ volatile("\t cli\n" );
+    while(1);
 }
+
 /*void switch_to(struct PCB *me, struct PCB *next) {
     __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(next->kstack[398]));
     __asm__ volatile("\t push %%rdi\n" );
@@ -25,8 +29,16 @@ void pdef() {
     __asm__ volatile("\t mov %0, %%rsp\n" : "m"(next->rsp) );
     __asm__ volatile("\t pop %rdi\n" );
 }*/
+
+int write(int file_descriptor, char *buf, int size, int offset) {
+    struct filesys_node *out_node = file_descriptors[file_descriptor]->link_to_inode;
+    int retval = write_vfs(out_node, buf, size, offset);
+    return retval;
+}
+
 void start(uint32_t *modulep, void *physbase, void *physfree)
 {
+    //void pdef() __attribute__((optimize("-O3")));
     struct smap_t {
         uint64_t base, length;
         uint32_t type;
@@ -60,50 +72,58 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     __asm__("\t or $0x80000000, %eax\n" );
     __asm__("\t mov %rax, %cr0\n" );
     char *temp2;
-
+    init_after_paging();
     for(temp2 = (char*)(KERNBASE + 0xb8001); temp2 < (char*)((KERNBASE + 0xb8000)+160*25); temp2 += 2) *temp2 = 7;
-    kprintf("Hello");
-    //int i,j;
-    /*struct task_struct *current_task = bump(sizeof(struct task_struct));
-    struct mm_struct *current_mm = bump(sizeof(struct mm_struct));
-    struct vm_area_struct *current_vma = bump(sizeof(struct vm_area_struct));
-    current_task->active_mm = current_mm;
-    current_task->mm = current_mm;
-    current_mm->list_of_vmas = current_vma;
-    current_mm->num_of_vmas = 1;
-    current_mm->page_table = pml4t_t_phy;
-    current_vma->vma_start = (uint64_t)bump(4096);
-    current_vma->vma_end = current_vma->vma_start + 4096;
-    current_vma->next = NULL;
-    current_vma->prev = NULL;
 
-    struct task_struct *second_thread = bump(sizeof(struct task_struct));
-    second_thread->active_mm = current_mm;
-    second_thread->mm = current_mm;*/
-    //kprintf("Current unallocated %x", get_unallocated());
-    struct PCB *curr_task = bump(sizeof(struct PCB));
-   // kprintf("\ninitial stack %s",(char *)initial_stack);
-    //for(i=4095,j=399;initial_stack[i]!=0x0;j--,i--)
-        //curr_task->kstack[j]=initial_stack[i];
-    //curr_task->kstack[] = (char *) &initial_stack;
+    mainthread = bump(sizeof(struct PCB));
+    threadlist=mainthread;
+    mainthread->next=NULL;
+    mainthread->state=0;
+    initialise_file_system();
+    context_switch();
+
+
+
+
+
+
+
+
+
+
+
+
+    /*struct PCB *curr_task = (struct PCB *)bump(sizeof(struct PCB));
+    uint64_t arg12 = 0;
+    __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(arg12));
+    curr_task->rsp = 5;
+    struct PCB *next_task = (struct PCB *)bump(sizeof(struct PCB));
+    void (*fun1)() = &pdef;
+    next_task->kstack[399] = (uint64_t)fun1;
+    next_task->gotoaddr = (uint64_t)fun1;
+    next_task->rsp= (uint64_t) &(next_task->kstack[399]);
+    struct PCB *mainthread = (struct PCB *)bump(sizeof(struct PCB));
+    mainthread->threads = mainthread;
+    mainthread->parent = NULL;
+    mainthread->next = NULL;
+    mainthread->state = 0;
     uint64_t arg1 = 0;
     __asm__("\t mov %%rsp,%0\n" : "=m"(arg1));
-    curr_task->rsp = arg1;
-    struct PCB *next_task = bump(sizeof(struct PCB));
-    void (*fun1)() = &pdef;
-    kprintf("%x",*(fun1));
-   //next_task->kstack = bump(sizeof(uint64_t)*5);
-   next_task->kstack[398] = (uint64_t)fun1;
-    next_task->rsp= (uint64_t) &(next_task->kstack[398]);
-    kprintf("addreses %x %x %x\n",next_task,&(next_task->kstack[398]),next_task->kstack[399]);
-  //  pdef();
-   switch_to(curr_task,next_task);
-    kprintf("back");
-    //fun1();
-    //schedule(curr_task);
-    /*//next_task->kstack = bump(4096 * sizeof(next_task->kstack));
-    */
-    //switch_to(curr_task, next_task);
+    mainthread->rsp = arg1;
+    next_task->page_table = map_user_pml4();
+    next_task->page_table->PML4Entry[510].page_value = (((uint64_t)next_task->page_table & 0xfffffffffffff000)  - KERNBASE)|7;
+    //kprintf("\nPage Table Values %d", sizeof(fun1));
+    //map_user_address(USERBASE + (uint64_t)physbase, (uint64_t)fun1 - KERNBASE, 4096, next_task->page_table);
+    next_task->page_table = (struct pml4t*)((uint64_t)next_task->page_table - KERNBASE);
+
+
+
+    next_task->gotoaddr = (uint64_t)fun1;*/
+    //create_file_descriptors();
+    //write(1, "testing abc", 0, 0);
+    //switch_to_ring_3(next_task);
+
+    //initialise_file_system();
     //checkbus();
     /*for(
             temp1 = "Last pressed glyph", temp2 = (char*)(0xb8ec2);
@@ -122,10 +142,10 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     *temp2 = ':';
 
     checkbus();*/
-    while(1);
+    while(1) {
+        schedule();
+    };
 }
-
-
 
 void boot(void)
 {

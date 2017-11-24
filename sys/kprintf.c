@@ -1,4 +1,4 @@
-#include <sys/kprintf.h>
+#include <sys/io.h>
 #include <sys/virtualmem.h>
 
 static char* outputstring = (char*)(KERNBASE + 0xb8000);
@@ -24,6 +24,14 @@ unsigned long getargument(unsigned long a, unsigned long b, unsigned long c, uns
     return f;
 }
 
+char* get_buffer_value() {
+    return outputstring;
+}
+
+void set_buffer_value(char *output_value) {
+    outputstring = output_value;
+}
+
 /*
  * Function:  kprintf 
  * --------------------
@@ -35,7 +43,7 @@ void kprintf(const char *fmt, ...)
     char* value;
     int intvalue, length = 2;
     unsigned long pointervalue;
-    int rem[20], i;
+    int rem[20], i, remainder = 0;
     unsigned long arg1;
     unsigned long arg2;
     unsigned long arg3;
@@ -146,7 +154,8 @@ void kprintf(const char *fmt, ...)
         }
         else if (*fmt == '\n')
         {
-            outputstring -= length;
+            remainder = ((uint64_t)outputstring - (KERNBASE + 0xb8000)) % 160;
+            outputstring -= remainder + 2;
             outputstring += 160;
 
         }

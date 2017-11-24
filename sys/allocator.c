@@ -4,7 +4,7 @@
 #include <sys/defs.h>
 #include <sys/allocator.h>
 #include <sys/virtualmem.h>
-#include <sys/kprintf.h>
+#include <sys/io.h>
 
 void *unallocated;
 void *end;
@@ -17,18 +17,6 @@ void initbump(void *physbase, void *physfree, void *physend) {
     struct free_list* temp_free = (struct free_list*)physfree;
     head_free = temp_free;
     kprintf("Size of node: %d", sizeof(struct free_list));
-    /*for (uint64_t i = 0x150000, j = (uint64_t)0x150000; i < (uint64_t)(physbase - 8192); i+=4096, j+=16) {
-        temp_free = (struct free_list*)j;
-        temp_free->current = i;
-        if (i != (uint64_t)(physbase - 8192)) {
-            temp_free->next = (struct free_list *) (j + 16);
-        }
-        else {
-            temp_free->next = NULL;
-        }
-        temp_free = temp_free->next;
-
-    }*/
 
     for (uint64_t i = (uint64_t)physfree, j = (uint64_t)physfree; i <= (uint64_t)(physend-4096); i+=4096, j+=16) {
         temp_free = (struct free_list*)j;
@@ -55,10 +43,18 @@ void initbump(void *physbase, void *physfree, void *physend) {
     }
 }
 
+void init_after_paging() {
+    head_free = (struct free_list*)((uint64_t)head_free + KERNBASE);
+    struct free_list* temp_free = head_free;
+    while (temp_free->next != NULL) {
+        temp_free->next = (struct free_list*)((uint64_t)temp_free->next + KERNBASE);
+        temp_free = temp_free->next;
+    }
+}
+
 void *bump(uint64_t size)
 {
     uint64_t ret;
-    head_free = (struct free_list*)((uint64_t)head_free + KERNBASE);
     num_of_pages = size / 4096;
     if (((size / 4096) * 4096) < size) {
         num_of_pages++;
@@ -79,6 +75,53 @@ void *bump(uint64_t size)
 }
 
 uint64_t get_unallocated() {
-    return ((struct free_list*)((uint64_t)head_free + KERNBASE))->current;
+    return head_free->current;
 }
+
+void *bump_user(uint64_t size)
+{
+    uint64_t ret;
+    //head_free = (struct free_list*)((uint64_t)head_free + KERNBASE);
+    num_of_pages = size / 4096;
+    if (((size / 4096) * 4096) < size) {
+        num_of_pages++;
+    }
+
+    if (num_of_pages > number_of_free_pages) {
+        return 0;
+    }
+    else {
+        ret = head_free->current;
+        while (num_of_pages != 0) {
+            head_free = head_free->next;
+            num_of_pages--;
+            number_of_free_pages--;
+        };
+    }
+    return (void *)(ret + USERBASE);
+}
+
+void *bump_physical(uint64_t size)
+{
+    uint64_t ret;
+    //head_free = (struct free_list*)((uint64_t)head_free + KERNBASE);
+    num_of_pages = size / 4096;
+    if (((size / 4096) * 4096) < size) {
+        num_of_pages++;
+    }
+
+    if (num_of_pages > number_of_free_pages) {
+        return 0;
+    }
+    else {
+        ret = head_free->current;
+        while (num_of_pages != 0) {
+            head_free = head_free->next;
+            num_of_pages--;
+            number_of_free_pages--;
+        };
+    }
+    return (void *)(ret);
+}
+
 
