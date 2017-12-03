@@ -2,7 +2,6 @@
 // Created by Toby Babu on 10/22/17.
 //
 #include <sys/defs.h>
-#include <sys/kprintf.h>
 #ifndef COURSEPROJ_VIRTUALMEM_H
 #define COURSEPROJ_VIRTUALMEM_H
 
@@ -97,13 +96,16 @@ struct pt_regs {
     unsigned long ss;
 /* top of stack page */
 };
-
+void flush_tlb();
 void init_paging(void *physfree);
 void map_address(uint64_t address, uint64_t map_phy_address);
 struct pml4t* map_user_pml4();
-void map_user_address(uint64_t address, uint64_t map_phy_address, int size_to_map, struct pml4t *map_table);
+void map_user_address(uint64_t address, uint64_t map_phy_address, int size_to_map, struct pml4t *map_table, uint64_t flags);
+struct pml4t* duplicate_page_table(struct pml4t *source_table);
+struct pml4t* copy_pml4(struct pml4t *user_table);
 
 #define	KERNBASE	0xffffffff80000000
 #define	USERBASE	0xFFFFCCCC00000000
 
 #endif //COURSEPROJ_VIRTUALMEM_H
+

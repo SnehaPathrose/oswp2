@@ -6,9 +6,12 @@
 #include <sys/virtualmem.h>
 #include <sys/contextswitch.h>
 #include <sys/tarfs.h>
+#include <sys/io.h>
+#include <sys/klibc.h>
 
 void user_process()
 {
+    processcount=0;
     struct PCB *temp, *process=NULL;
     temp=threadlist;
     while(temp!=NULL) {
@@ -19,11 +22,210 @@ void user_process()
         temp = temp->next;
     }
     if (process != NULL) {
+        kstrcopy(currentthread->cwd,"/rootfs/bin/");
         process->page_table = map_user_pml4();
         process->page_table = (struct pml4t *) ((uint64_t) process->page_table - KERNBASE);
         uint64_t pml4 = (uint64_t) process->page_table & ~0xFFF;
         __asm__ volatile("mov %0, %%cr3"::"r"(pml4));
         loadelf("bin/sbush", process);
+        processcount++;
+        process->pid=processcount;
+        process->ppid=0;
         switch_to_ring_3(process);
     }
+}
+
+struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
+    int i;
+    for(i=0;i<KSTACKLEN;i++)
+        new_process->kstack[i]=current_process->kstack[i];
+    kstrcopy(new_process->cwd,current_process->cwd);
+    new_process->state=1;
+
+    new_process->mm = bump(sizeof(struct mm_struct));
+    processcount++;
+    new_process->pid=processcount;
+    new_process->ppid=current_process->pid;
+    new_process->mm->num_of_vmas = current_process->mm->num_of_vmas;
+    new_process->mm->list_of_vmas = bump(sizeof(struct vm_area_struct));
+    struct vm_area_struct *vma, *tempvma = NULL;
+    //struct file *tempfile;
+    struct vm_area_struct *temp_area_struct = current_process->mm->list_of_vmas;
+    while (temp_area_struct != NULL) {
+        if(temp_area_struct->vma_type == HEAP) {
+            uint64_t heapsize=temp_area_struct->vma_end - temp_area_struct->vma_start;
+            vma=createheap(heapsize,new_process,0x05);
+            kmemcpy((uint64_t *)temp_area_struct->vma_start,(uint64_t *)vma->vma_start,heapsize);
+        }
+        else if(temp_area_struct->vma_type == STACK) {
+            uint64_t addr,offset=0;
+            //__asm__ volatile("\t movq 216(%%rsp),%0\n" :: "r"(tss->rsp) );
+            vma = bump(sizeof(struct vm_area_struct));
+            uint64_t *stack = bump_user(4096);
+            map_user_address((uint64_t)stack,(uint64_t)stack, 4096, (struct pml4t *)((uint64_t)new_process->page_table + KERNBASE),0x05);
+            kmemcpy((uint64_t *)temp_area_struct->vma_start,stack,4096);
+            vma->vma_file = NULL;
+            vma->vma_type=STACK;
+            vma->vma_start = (uint64_t)stack;
+            vma->vma_end = (uint64_t)stack + 4095;
+            tempvma = new_process->mm->list_of_vmas;
+            while (tempvma->next != NULL)
+                tempvma = tempvma->next;
+            //tempvma = vma;
+            vma->prev = tempvma;
+            tempvma->next = vma;
+            vma->next = NULL;
+            for(addr=temp_area_struct->vma_end;addr>=temp_area_struct->vma_start;addr--)
+            {
+                if(addr==currentthread->ursp)
+                {
+                    offset=temp_area_struct->vma_end-addr;
+                    break;
+                }
+            }
+            new_process->ursp=vma->vma_end-offset;
+        }
+        else {
+            vma = bump(sizeof(struct vm_area_struct));
+            vma->vma_start = temp_area_struct->vma_start;
+            vma->vma_end = temp_area_struct->vma_end;
+            vma->vma_flags = temp_area_struct->vma_flags;
+            if (temp_area_struct->vma_file != NULL) {
+                vma->vma_file = (struct file *) bump(sizeof(struct file));
+                vma->vma_file->bss_size = temp_area_struct->vma_file->bss_size;
+                vma->vma_file->file_start = temp_area_struct->vma_file->bss_size;
+                vma->vma_file->vm_pgoff = temp_area_struct->vma_file->vm_pgoff;
+                vma->vma_file->vm_sz = temp_area_struct->vma_file->vm_sz;
+            }
+            vma->next = NULL;
+            if(tempvma == NULL)
+            {
+                new_process->mm->list_of_vmas=vma;
+                vma->prev=NULL;
+            }
+            else
+            {
+                vma->prev = tempvma;
+            }
+            tempvma = vma;
+
+            //vma=vma->next;
+
+        }
+
+        temp_area_struct = temp_area_struct->next;
+
+    }
+    return new_process;
+}
+
+struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t flags)
+{
+    struct vm_area_struct *vma,*tempvma;
+    uint64_t *heap = bump_user(size);
+    map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
+    memset((void *)heap,0,size);
+    //kprintf("\nValue of heap: %x", (uint64_t)heap);
+    vma = bump(sizeof(struct vm_area_struct));
+    vma->vma_type = HEAP;
+    vma->vma_file = NULL;
+    vma->vma_start = (uint64_t)heap;
+    vma->vma_end = (uint64_t)heap + size-1;
+    tempvma = process->mm->list_of_vmas;
+    while (tempvma->next != NULL)
+        tempvma = tempvma->next;
+    //tempvma = vma;
+    vma->prev = tempvma;
+    tempvma->next = vma;
+    vma->next = NULL;
+    process->heap_ptr = (uint64_t)heap;
+    return vma;
+}
+void clear_vmas()
+{
+
+    struct vm_area_struct *tempvma/*,*freevma*/;
+    tempvma=currentthread->mm->list_of_vmas;
+    while(tempvma!=NULL)
+    {
+        if(tempvma->vma_type==OTHER) {
+            //free the tempvma file
+            tempvma->vma_file = NULL;
+        }
+        //freevma=tempvma;
+        tempvma=tempvma->next;
+        //free the freevma
+        //freevma=NULL;
+    }
+    currentthread->mm->list_of_vmas=NULL;
+    //free mm
+    currentthread->mm=NULL;
+}
+
+void clear_uptentries()
+{
+    struct pml4t *pagetable=(struct pml4t *) ((uint64_t)(currentthread->page_table)+KERNBASE);
+    for (int i = 0; i < 512; i++) {
+        if(pagetable->PML4Entry[i].page_value & 0x0000000000000004) {
+            if (i == 510) {
+                continue;
+            }
+            pagetable->PML4Entry[i].page_value = 0x0;
+            struct pdpt *pdpt = (struct pdpt *)(KERNBASE + (pagetable->PML4Entry[i].page_value & 0xfffffffffffff000));
+            for (int i = 0; i < 512; i++) {
+                if(pdpt->PDPEntry[i].page_value & 0x0000000000000004) {
+                    pdpt->PDPEntry[i].page_value = 0x0;
+                    struct pdt *pdt = (struct pdt *)(KERNBASE + (pdpt->PDPEntry[i].page_value & 0xfffffffffffff000));
+                    for (int i = 0; i < 512; i++) {
+                        if(pdt->PDEntry[i].page_value & 0x0000000000000004) {
+                            pdt->PDEntry[i].page_value = 0x0;
+                            struct pt *pt = (struct pt *)(KERNBASE + (pdt->PDEntry[i].page_value & 0xfffffffffffff000));
+                            for (int i = 0; i < 512; i++) {
+                                if(pt->PageEntry[i].page_value & 0x0000000000000004) {
+                                    pt->PageEntry[i].page_value = 0x0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+void clear_kernelstack()
+{
+    memset(currentthread->kstack,0, 400);
+}
+int do_execvpe(const char *file, char *const argv[])
+{
+    char filename[20], args[5][8];
+    int i,argc=0;
+    uint64_t *stack=NULL;
+    kstrcopy(filename,(char *)file);
+    // memset(args,'\0', sizeof(args));
+    for(i=0;argv[i]!=0;i++) {
+        kstrcopy(args[i], argv[i]);
+        argc++;
+    }
+    kstrcopy(args[argc],"\0");
+    clear_vmas();
+    clear_uptentries();
+    loadelf(filename,currentthread);
+    stack = (uint64_t *) currentthread->ursp;
+
+
+    kmemcpy((uint64_t *)args,stack-argc,(uint64_t) (argc * 8));
+    //*(stack-(argc-i))=(uint64_t)args[i];
+    for(i=1;i<=argc;i++) {
+        *(stack - (argc + i)) = (uint64_t) (stack - i);
+    }
+    *(stack-((2*argc)+1))=(uint64_t)(stack-(2*argc));
+    *(stack-((2*argc)+2))=argc;
+    //*(stack-((2*argc)+3))=0xf;
+    currentthread->ursp=(uint64_t)(stack-((2*argc)+2));
+    clear_kernelstack();
+    switch_to_ring_3(currentthread);
+
+    return 0;
 }

@@ -3,39 +3,58 @@
 //
 #include <sys/io.h>
 #include <sys/defs.h>
+#include <sys/allocator.h>
+#include <sys/klibc.h>
 
 const static char scantochar[100] = { '\0','\0','1','2','3','4','5','6','7','8','9','0','\0','\0','\0','\0',
-                                     'q','w','e','r','t','y','u','i','o','p','\0','\0','\0','\0',
+                                     'q','w','e','r','t','y','u','i','o','p','\0','\0','\n','\0',
                                      'a','s','d','f','g','h','j','k','l','\0','\0','\0','\0','\0','z','x',
                                      'c','v','b','n','m' };
 const static char scantoUchar[100] = { '\0','\0','!','@','#','$','%','^','&','*','(',')','\0','\0','\0','\0',
-                                      'Q','W','E','R','T','Y','U','I','O','P','\0','\0','\0','\0',
+                                      'Q','W','E','R','T','Y','U','I','O','P','\0','\0','\n','\0',
                                       'A','S','D','F','G','H','J','K','L','\0','\0','\0','\0','\0','Z','X',
                                       'C','V','B','N','M' };
 const static char scantoCchar[100] = { '\0','\0','1','2','3','4','5','6','7','8','9','0','\0','\0','\0','\0',
-                                      'Q','W','E','R','T','Y','U','I','O','P','\0','\0','\0','\0',
+                                      'Q','W','E','R','T','Y','U','I','O','P','\0','\0','\n','\0',
                                       'A','S','D','F','G','H','J','K','L','\0','\0','\0','\0','\0','Z','X',
                                       'C','V','B','N','M' };
 static int controlflag = 0x00;
-static int size = -1;
+static int size;
 static char key_press[3];
-static char *address_of_buf = 0x0;
+static char *address_of_buf;
+static char *terminal_buf;
 
-char* read_from_ip(int read_size, char* buf) {
-    //size = read_size;
+/*void read_from_ip(int read_size, char* buf) {
     address_of_buf = buf;
-    size = 1;
+    size = read_size;
     while (size >= 0) {
-        //kprintf("here");
         if(size == 0) {
-            //kprintf("gone");
-            //size = -1;
-            //address_of_buf = 0x0;
-            return "test\0";
+            return buf;
         }
-        //size--;
     }
     return "";
+}*/
+
+void initialize_keyboard_buffer() {
+    terminal_buf = bump(1024);
+    address_of_buf = terminal_buf;
+    size = 0;
+}
+
+int get_terminal_size() {
+    return kstrlength(terminal_buf);
+}
+
+void reset_terminal() {
+    address_of_buf = terminal_buf;
+    for (int i = 0; i < 1024; i++) {
+        *(address_of_buf + i) = '\0';
+    }
+    size = 0;
+}
+
+char* get_terminal_buf() {
+    return terminal_buf;
 }
 
 void kscanf(uint8_t keyscancode) {
@@ -69,6 +88,16 @@ void kscanf(uint8_t keyscancode) {
         if (keyscancode == 29) // control
         {
             controlflag = controlflag | 0x04;
+        }
+        else
+        if (keyscancode == 28) //enter
+        {
+            key_character = scantochar[keyscancode];
+            if (size >= 0 && address_of_buf != 0x0){
+                *address_of_buf = key_character;
+                *(address_of_buf + 1) = '\0';
+            }
+            kprintf("\n");
         }
         else {
 
@@ -118,10 +147,14 @@ void kscanf(uint8_t keyscancode) {
                 kprintf("%c",key_character);
         }
 
+        if (size != 1024) {
+            address_of_buf++;
+            size++;
+        }
+        else {
+            reset_terminal();
+        }
     }
-    if (size != -1) {
-        address_of_buf++;
-        size--;
-    }
+
     //return key_press;
 }

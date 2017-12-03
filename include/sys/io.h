@@ -12,5 +12,8 @@ void kprintf(const char *fmt, ...);
 char* get_buffer_value();
 void set_buffer_value(char *output_value);
 void kscanf(uint8_t keyscancode);
-char* read_from_ip(int read_size, char* buf);
+int get_terminal_size();
+void initialize_keyboard_buffer();
+char* get_terminal_buf();
+void reset_terminal();
 #endif //COURSEPROJ_IO_H

@@ -124,4 +124,3 @@ void *bump_physical(uint64_t size)
     return (void *)(ret);
 }
 
-

@@ -32,10 +32,20 @@ struct filesys_node {
     int (*write)(char *buf, int size, int offset);
     int (*open)(char *file_name);
 };
+#define NAME_MAX 255
 
+typedef struct dirent{
+    char d_name[NAME_MAX+1];
+    int d_no;
+    int fd;
+}DIR;
+DIR *do_opendir(char *dirname);
+struct dirent *do_readdir(DIR *dir);
+int do_closedir(DIR *dirp);
 int read_vfs(struct filesys_node *node, uint64_t *buf, int size, int offset);
 int write_vfs(struct filesys_node *node, char *buf, int size, int offset);
 void initialise_file_system();
 
 
 #endif //COURSEPROJ_FS_H
+

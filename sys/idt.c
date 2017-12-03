@@ -3,6 +3,7 @@
 #include <sys/virtualmem.h>
 #include <sys/io.h>
 #include <sys/syscall.h>
+#include <sys/contextswitch.h>
 
 #define MAX_IDT 255
 
@@ -62,51 +63,51 @@ void handletime() {
             hcount = 0;
 
     }
-    
+
     if (mscount == 18) {
         scount++;
         mscount = 0;
     }
-    
+
     intvalue = hcount;
     while(intvalue != 0)
     {
         rem[i++] = intvalue % 10 + '0';
         intvalue = intvalue / 10;
     }
-    
+
     for(int j = 1;j >= 0;temp2 += 2, j--)
         *temp2 = rem[j];
-        
+
     *temp2 = ':';
     temp2 += 2;
     intvalue = mcount;
     rem[0] = 0 + '0';
     rem[1] = 0 + '0';
     i = 0;
-    
+
     while(intvalue != 0)
     {
         rem[i++] = intvalue % 10 + '0';
         intvalue = intvalue / 10;
     }
-    
+
     for(int j = 1;j >= 0;temp2 += 2, j--)
         *temp2 = rem[j];
-        
+
     *temp2 = ':';
     temp2 += 2;
     intvalue = scount;
     rem[0] = 0 + '0';
     rem[1] = 0 + '0';
     i = 0;
-    
+
     while(intvalue != 0)
     {
         rem[i++] = intvalue % 10 + '0';
         intvalue = intvalue / 10;
     }
-    
+
     for(int j = 1;j >= 0;temp2 += 2, j--)
         *temp2 = rem[j];
 }
@@ -118,7 +119,7 @@ void handletime() {
  * Computes the boot time in seconds, minutes and hours
  */
 void interrupt0() {
-    
+
     mscount++;
     // save the registers
     __asm__("\tpush %rax\n");
@@ -138,7 +139,7 @@ void interrupt0() {
     __asm__("\tpop %rcx\n");
     __asm__("\tpop %rax\n");
     __asm__("\tpop %r11\n");
-    
+
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
     __asm__( "\tiretq\n");
 };
@@ -263,6 +264,7 @@ void interrupt_syscall() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %rsi\n");
     __asm__("\tpush %rbp\n");
+    __asm volatile("movq 88(%%rsp), %0" : "=g" (currentthread->ursp));
     syscall_handler();
     // get the saved registers
     __asm__("\tpop %rbp\n");
@@ -305,16 +307,7 @@ void interrupt5() {
  * Any interrupts which arise are simply acknowledged
  */
 void interrupt4(struct pt_regs *regs) {
-    //kprintf("Hello there");
-    //__asm__ volatile ( "push_al");
-    //__asm__("cli;");
-    uint64_t *arg1 = 0/*, arg2 = 0*/;
-    /*__asm__( "\t mov $0,%rsi\n");
-    __asm__( "\t mov %cr2,%rsi\n");
-    __asm__( "\t mov %%rsi,%0\n" : "=m"(arg1));*/
-
-    //arg1 = arg1 + 0xffffffff80000000;
-    //uint64_t *arg3 = (uint64_t*)arg1;
+    uint64_t *arg1 = 0;
     __asm__ volatile ( "pushq %rdi ");
     __asm__ volatile ( "pushq %rax ");
     __asm__ volatile ( "pushq %rbx ");
@@ -324,26 +317,19 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "pushq %rsi ");
     __asm__ volatile ( "pushq %r8 ");
     __asm__ volatile ( "pushq %r9 ");
-    //__asm__ volatile ( "movq %rsp,%rdi ");
-    //kprintf("Arg1: %x", arg1);
-    /*__asm__("\tpush %rax\n");
-    __asm__("\tpush %rcx\n");
-    __asm__("\tpush %rdx\n");
-    __asm__("\tpush %rsi\n");
-    __asm__("\tpush %rdi\n");
-    __asm__("\tpush %r8\n");
-    __asm__("\tpush %r9\n");*/
-    __asm__ volatile ( "movq %%cr2, %0;" :"=a"(arg1) );
-    map_address( (uint64_t)arg1, (uint64_t)((uint64_t)arg1 - KERNBASE));
-    /*__asm__("\tpop %r9\n");
-    __asm__("\tpop %r8\n");
-    __asm__("\tpop %rdi\n");
-    __asm__("\tpop %rsi\n");
-    __asm__("\tpop %rdx\n");
-    __asm__("\tpop %rcx\n");
-    __asm__("\tpop %rax\n");
-    __asm__("\tpop %r11\n");
-    __asm__ volatile ( "addq $8 ,%rsp ");*/
+    __asm__ volatile ("movq %%cr2, %0;" :"=a"(arg1));
+    //if (arg1 & 0x)
+    //uint64_t pml4t_index = (((uint64_t)arg1 >> 39) & 0x00000000000001ff);
+    if ((currentthread != 0x0) && (currentthread->page_table != 0x0) && ((((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE))->PML4Entry[(((uint64_t) arg1 >> 39) & 0x00000000000001ff)].page_value & 0x0000000000000002) == 0x0)) {
+        currentthread->page_table = (struct pml4t *) ((((uint64_t)copy_pml4(currentthread->page_table) & 0xfffffffffffff000) - KERNBASE));
+        //currentthread->page_table = (struct pml4t*)((uint64_t)currentthread->page_table -KERNBASE);
+        uint64_t pml4 = (uint64_t) currentthread->page_table & ~0xFFF;
+        __asm__ volatile("mov %0, %%cr3"::"r"(pml4));
+
+    }
+    else {
+        map_address((uint64_t)arg1, (uint64_t)((uint64_t)arg1 - KERNBASE));
+    }
     __asm__ volatile ( "popq %r9 ");
     __asm__ volatile ( "popq %r8 ");
     __asm__ volatile ( "popq %rsi ");
@@ -354,9 +340,7 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "popq %rax ");
     __asm__ volatile ( "popq %rdi ");
     __asm__ volatile ( "addq $16 ,%rsp ");
-    //__asm__( "\t addq $0x8, %rsp\n");
     __asm__( "\t movq %rax,%r9\n");
-    //__asm__("sti;");
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
     __asm__( "\t movq %r9,%rax\n");
     __asm__( "\tiretq\n");
@@ -447,5 +431,6 @@ void init_idt() {
     idtr_addr.size = sizeof(idt);
     __asm__ ( "lidt %0" : : "m"(idtr_addr) );
 }
+
 
 

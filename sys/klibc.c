@@ -4,6 +4,8 @@
 
 #include <sys/allocator.h>
 #include <sys/defs.h>
+#include <sys/klibc.h>
+
 /*
  * Function:  memset
  * --------------------
@@ -43,7 +45,8 @@ int kstrcmp(char *string1, char *string2)
 void kmemcpy(uint64_t *source, uint64_t *dest,uint64_t size)
 {
     uint64_t i;
-    for(i=0;i<size;i++) {
+    size=size/8;
+    for(i=0;i<=size;i++) {
         *(dest+i) = *(source+i);
 
     }
@@ -66,4 +69,37 @@ char *concat(char *string1,char *string2) {
         concatstr[i + j] = string2[j];
     concatstr[i + j]='\0';
     return concatstr;
+}
+
+uint64_t roundup(uint64_t size)
+{
+    int rem;
+    rem=size%PAGE_SIZE;
+    if(rem > 0)
+        size = ((size/PAGE_SIZE)*PAGE_SIZE) + PAGE_SIZE;
+    else
+        size = ((size/PAGE_SIZE)*PAGE_SIZE);
+    return size;
+
+}
+
+
+char *kstrcopy(char *String1, char *String2)
+{
+    int i;
+    for (i=0;String2[i]!='\0';i++)
+        String1[i]=String2[i];
+    String1[i]='\0';
+    return String1;
+
+}
+
+char *kstrncopy(char *String1, char *String2, int n)
+{
+    int i;
+    for (i = 0; String2[i]!='\0' && i < n; i++)
+        String1[i]=String2[i];
+    String1[i]='\0';
+    return String1;
+
 }

@@ -7,17 +7,20 @@
 #include <sys/tarfs.h>
 #include <sys/klibc.h>
 
-struct filesys_tnode* find_file_from_root(struct filesys_tnode *current_node, char** file_name, int depth, int total_depth) {
+struct filesys_tnode* find_file_from_root(struct filesys_tnode *current_node, char file_name[10][256], int depth, int total_depth) {
     struct filesys_node *current_inode = current_node->link_to_inode;
+    struct filesys_tnode* ret;
     if (kstrcmp(current_node->name, file_name[depth]) == 0) {
         if (depth == total_depth)
             return current_node;
         else {
-            if (current_inode->flags == FS_DIRECTORY) {
+            if ((current_inode->flags == FS_DIRECTORY) || (current_inode->flags == FS_MOUNTPOINT)) {
                 if (current_inode->num_sub_directory > 0) {
+                    depth++;
                     for (int i = 0; i < current_inode->num_sub_directory; i++) {
-                        depth++;
-                        find_file_from_root(&current_inode->sub_directory_list[i], file_name, depth, total_depth);
+                        ret=find_file_from_root(&current_inode->sub_directory_list[i], file_name, depth, total_depth);
+                        if(ret!=NULL)
+                            return ret;
                     }
                 }
             }
@@ -38,18 +41,22 @@ struct filesys_tnode* find_file(char* file_name) {
     if (file_name[0] == '/') {
         // Search from root
         char sub_name[10][256];
-        int i = 0, j = 0, k = 0;
-        for (i = 0, j = 0, k = 0; i < kstrlength(file_name); i++, j++) {
+        int i = 0, j = 0, k = 0,len=0;
+        len=kstrlength(file_name);
+        for (i = 0, j = 0, k = 0; i < len; i++, j++) {
             sub_name[k][j] = file_name[i];
             if (file_name[i] == '/') {
                 sub_name[k][j + 1] = '\0';
-                k++;
-                memset(sub_name[k], 0, 256);
-                j = -1;
+                if(i!=len-1) {
+                    k++;
+                    j=-1;
+                    memset(sub_name[k], 0, 256);
+                }
+
             }
         }
         sub_name[k][j + 1] = '\0';
-        struct filesys_tnode *found_file = find_file_from_root(filefs_root, (char **) sub_name, 0, k);
+        struct filesys_tnode *found_file = find_file_from_root(filefs_root, sub_name, 0, k);
         return found_file;
     }
     return NULL;
@@ -89,6 +96,59 @@ int do_open(char *file_name) {
         if (file_descriptors[i] == NULL) {
             file_descriptors[i] = item;
             return i;
+        }
+    }
+    return -1;
+}
+
+DIR *do_opendir(char *dirname)
+{
+    DIR *dirptr = NULL;
+    int fd,i,j;
+    fd=do_open(dirname);
+    struct filesys_node *inode = file_descriptors[fd]->link_to_inode;
+    int totalfiles= inode->num_sub_files+inode->num_sub_directory;
+    dirptr=bump(totalfiles* sizeof(DIR));
+    for(i=0;i<inode->num_sub_directory;i++)
+    {
+        kstrcopy(dirptr[i].d_name,inode->sub_directory_list[i].name);
+        dirptr[i].d_no=0;
+        dirptr[i].fd=fd;
+    }
+    for(j=0;j<inode->num_sub_files;j++)
+    {
+        kstrcopy(dirptr[i].d_name,inode->sub_files_list[j].name);
+        dirptr[i].d_no=0;
+        dirptr[i].fd=fd;
+        i++;
+    }
+    return dirptr;
+}
+
+struct dirent *do_readdir(DIR *dir)
+{
+    struct dirent *file=NULL;
+    int i;
+    for(i=0;dir[i].d_no==1;i++);
+    if(kstrlength(dir[i].d_name)>0)
+    {file=dir+i;
+        dir[i].d_no=1;}
+    return file;
+}
+
+int do_closedir(DIR *dirp)
+{
+    for (int i = 0; i < 100; i++) {
+        if(i==dirp->fd){
+            file_descriptors[i] = 0;
+            //free dirp pointer as well
+            for(int j=0;kstrlength(dirp[j].d_name)>0;j++)
+            {
+                memset(dirp[j].d_name,0, sizeof(dirp[j].d_name));
+                dirp[j].d_no=-1;
+                dirp[j].fd=-1;
+            }
+            return 0;
         }
     }
     return -1;
@@ -273,6 +333,7 @@ void initialise_tarfs() {
     struct filesys_tnode *rootfs_directory = create_t_node("rootfs/");
     filefs_root->link_to_inode->sub_directory_list[filefs_root->link_to_inode->num_sub_directory] = *rootfs_directory;
     filefs_root->link_to_inode->num_sub_directory++;
+    rootfs_directory->link_to_inode->flags=FS_MOUNTPOINT;
     load_tarfs(rootfs_directory);
 
 }
@@ -291,5 +352,15 @@ void initialise_file_system() {
     file_descriptors[1] = terminal;
     file_descriptors[2] = terminal;
     initialise_tarfs();
-    //print_path(filefs_root);
+
+    //for testing
+    // print_path(filefs_root);
+    DIR *dir = do_opendir("/rootfs/bin/");
+    DIR *dirent;
+    dirent=do_readdir(dir);
+    kprintf(dirent->d_name);
+    dirent=do_readdir(dir);
+    kprintf(dirent->d_name);
+    do_closedir(dir);
 }
+

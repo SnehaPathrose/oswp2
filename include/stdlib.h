@@ -3,10 +3,11 @@
 
 #include <sys/defs.h>
 
-int main(int argc, char *argv[], char *envp[]);
+int main(int argc, char *argv[]);
 void exit(int status);
 
 void *malloc(size_t size);
 void free(void *ptr);
 
 #endif
+

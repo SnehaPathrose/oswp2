@@ -16,6 +16,7 @@ struct vm_area_struct {
     uint64_t vma_start;
     uint64_t vma_end;
     uint32_t vma_flags;
+    uint32_t vma_type;
     struct vm_area_struct *next, *prev;
     struct file *vma_file;
     //Need a pointer to mm_struct
@@ -25,7 +26,7 @@ struct vm_area_struct {
 struct mm_struct {
     struct vm_area_struct *list_of_vmas;
     int num_of_vmas;
-    uint64_t page_table;
+    //uint64_t page_table;
 };
 
 struct task_struct {
@@ -52,25 +53,34 @@ struct thread {
 struct PCB {
     uint64_t kstack[400];
     struct mm_struct *mm;
-    uint64_t pid;
-    uint64_t rsp, rip;
+    int pid,ppid;
+    uint64_t rsp, heap_ptr,ursp;
     enum { RUNNING, SLEEPING, ZOMBIE } state;
     int exit_status;
-    struct PCB *threads;
+    //struct PCB *threads;
     struct PCB *next;
     struct PCB *parent;
     uint64_t gotoaddr;
     struct pml4t *page_table;
+    char cwd[50];
 };
-//struct PCB *mainthread;
-//void schedule(struct PCB *);
+
 struct PCB *mainthread;
 struct PCB *threadlist;
+struct PCB *currentthread;
 void schedule();
 void switch_to(struct PCB *me, struct PCB *next);
 void context_switch();
 void switch_to_ring_3(struct PCB *tss);
 void idle_func();
 void (*on_completion_pointer)();
+void switch_to_new_process(struct PCB *tss);
+struct PCB* create_duplicate_process(struct PCB* forked_process);
+char *check_for_ip(int size_ip, char *ab);
+struct PCB *create_thread(uint64_t faddr);
 #define KSTACKLEN 400
+#define STACK 0x01
+#define HEAP 0x02
+#define OTHER 0x03
 #endif //COURSEPROJ_CONTEXTSWITCH_H
+
