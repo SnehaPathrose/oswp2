@@ -18,6 +18,10 @@ void switch_to(struct PCB *me, struct PCB *next) {
     currentthread = next;
     uint64_t pml4 = (uint64_t) next->page_table & ~0xFFF;
     __asm__ volatile("mov %0, %%cr3"::"r"(pml4));
+    set_tss_rsp(&next->kstack[399]);
+    __asm__ volatile("\t pop %r8\n");
+    __asm__ volatile("\t pop %r8\n");
+    __asm__ volatile("\t pop %r8\n");
     if (me!=NULL) {
         __asm__ volatile("\t pop %r8\n");
         __asm__ volatile("\t pop %r9\n");
@@ -30,6 +34,7 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t push %rsi\n");
         __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(me->rsp));
         __asm__ volatile("\t mov %0, %%rsp\n" : "=m"(next->rsp));
+        //__asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rdi\n");
         __asm__ volatile("\t pop %rdx\n");
@@ -132,7 +137,7 @@ void idle_func()
 
 void thread_on_completion()
 {
-    struct PCB *temp;
+    struct PCB *temp = NULL, *temp_list = blockedlist, *temp2 = NULL, *another_child = NULL, *next = NULL, *parent = NULL/*, *prev_parent*/;
     temp = threadlist;
     while(temp!=NULL)
     {
@@ -140,8 +145,36 @@ void thread_on_completion()
             temp->state = 2;
             break;
         }
-        temp=temp->next;
 
+        temp=temp->next;
+        next = temp->next;
+
+    }
+
+    if (temp!= NULL && temp->ppid > 0 && temp->is_wait == 1) {
+        temp2 = threadlist;
+        while (temp2 != NULL) {
+            if ((temp2->state != 2) && (temp != temp2) && (temp->ppid == temp2->ppid)) {
+                another_child = temp2;
+                break;
+            }
+            temp2 = temp2->next;
+        }
+
+        if (!another_child) {
+            while (temp_list != NULL) {
+                if (temp_list->pid == temp->ppid) {
+                    parent = temp_list;
+                    temp_list = temp_list->next;
+                    //if (next != NULL) {
+                        temp->next = parent;
+                        parent->next = next;
+                    //}
+                    break;
+                }
+                temp_list = temp_list->next;
+            }
+        }
     }
     __asm__ volatile("\t sti\n" );
     schedule();
@@ -202,14 +235,15 @@ void schedule() {
     struct PCB *me=NULL,*next=NULL,*temp;
 
     //some scheduling logic for now
-    temp = threadlist;
-    while(temp!=NULL) {
+    //temp = threadlist;
+    /*while(temp!=NULL) {
         if (temp->state == 0) {
             me = temp;
             break;
         }
         temp = temp->next;
-    }
+    }*/
+    me = currentthread;
     temp=threadlist;
     while(temp!=NULL) {
         if (temp->state == 1) {
@@ -223,7 +257,7 @@ void schedule() {
 
     if (me == mainthread)
         me->state = 2;
-    else if(me != NULL)
+    else if(me != NULL && me->state != 2)
         me->state = 1;
     if(next == NULL)
         next = mainthread;

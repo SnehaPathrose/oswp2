@@ -42,6 +42,7 @@ typedef struct dirent{
 DIR *do_opendir(char *dirname);
 struct dirent *do_readdir(DIR *dir);
 int do_closedir(DIR *dirp);
+int do_findfile(char *filename);
 int read_vfs(struct filesys_node *node, uint64_t *buf, int size, int offset);
 int write_vfs(struct filesys_node *node, char *buf, int size, int offset);
 void initialise_file_system();

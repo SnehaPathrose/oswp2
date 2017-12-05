@@ -101,6 +101,15 @@ int do_open(char *file_name) {
     return -1;
 }
 
+int do_findfile(char *filename) {
+    struct filesys_tnode *item = find_file(filename);
+    if (item == NULL) {
+        kprintf("\n File not found");
+        return -1;
+    }
+    return 0;
+}
+
 DIR *do_opendir(char *dirname)
 {
     DIR *dirptr = NULL;
@@ -251,7 +260,7 @@ void load_tarfs(struct filesys_tnode *current_node)
 {
     struct posix_header_ustar *tarfs;
     uint64_t size;
-    kprintf("size of : %d",sizeof(struct posix_header_ustar));
+    //kprintf("size of : %d",sizeof(struct posix_header_ustar));
     uint64_t address=(uint64_t)&_binary_tarfs_start;
     tarfs = (struct posix_header_ustar *)address;
     struct filesys_tnode *active_node = current_node;

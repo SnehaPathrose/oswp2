@@ -29,7 +29,7 @@ uint64_t findfile(char *filename)
 {
     struct posix_header_ustar *tarfs;
     uint64_t size;
-    kprintf("size of : %d",sizeof(struct posix_header_ustar));
+    //kprintf("size of : %d",sizeof(struct posix_header_ustar));
     uint64_t address=(uint64_t)&_binary_tarfs_start;
     tarfs = (struct posix_header_ustar *)address;
     while(tarfs->name[0]!='\0')
@@ -61,7 +61,7 @@ void loadelf(char *filename, struct PCB *p1)
     struct Elf64_Phdr *phdr=(struct Elf64_Phdr *) (elfaddress + elf->e_phoff);
     p1->mm = bump(sizeof(struct mm_struct));
     p1->gotoaddr = elf->e_entry;
-    kprintf("elf program hsize: %x\n",elf->e_phentsize);
+    //kprintf("elf program hsize: %x\n",elf->e_phentsize);
     struct vm_area_struct *tempvma = NULL;
     struct vm_area_struct *vma;
     for(i=0;i<elf->e_phnum;i++)
@@ -118,7 +118,7 @@ void loadelf(char *filename, struct PCB *p1)
     uint64_t *stack = bump_user(4096);
     map_user_address((uint64_t)stack,(uint64_t)stack-USERBASE,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
     memset((void *)stack,0,4096);
-    kprintf("\nValue of stack: %x", (uint64_t)stack);
+    //kprintf("\nValue of stack: %x", (uint64_t)stack);
     vma = bump(sizeof(struct vm_area_struct));
     vma->vma_type = STACK;
     vma->vma_file = NULL;

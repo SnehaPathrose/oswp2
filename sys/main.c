@@ -57,6 +57,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     mainthread->next = NULL;
     mainthread->state = 0;
     mainthread->page_table = (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
+    currentthread = mainthread;
     initialise_file_system();
     context_switch();
     //checkbus();

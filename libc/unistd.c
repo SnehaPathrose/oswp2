@@ -24,3 +24,17 @@ int fork()
     __asm__ volatile("int $0x80":"=a"(ret));
     return ret;
 }
+
+int waitpid(int pid, int *status) {
+    int ret;
+    __asm__ volatile("movq $11,%rax");
+    __asm__ volatile("int $0x80":"=a"(ret));
+    return ret;
+}
+
+int access(const char *pathname, int mode) {
+    int ret;
+    __asm__ volatile("movq $12,%rax");
+    __asm__ volatile("int $0x80":"=a"(ret));
+    return ret;
+}

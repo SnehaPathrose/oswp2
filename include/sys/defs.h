@@ -18,5 +18,9 @@ typedef int64_t ssize_t;
 typedef uint64_t off_t;
 
 typedef uint32_t pid_t;
+#define F_OK 1
+#define R_OK 2
+#define W_OK 3
+#define X_OK 4
 
 #endif

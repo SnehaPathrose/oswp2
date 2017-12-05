@@ -16,6 +16,7 @@ int fork();
 int execvpe(const char *file, char *const argv[]);
 pid_t wait(int *status);
 int waitpid(int pid, int *status);
+int access(const char *pathname, int mode);
 
 unsigned int sleep(unsigned int seconds);
 
@@ -28,6 +29,10 @@ int mkdir(const char *pathname, uint64_t mode);
 
 // OPTIONAL: implement for ``signals and pipes (+10 pts)''
 int pipe(int pipefd[2]);
+#define F_OK 1
+#define R_OK 2
+#define W_OK 3
+#define X_OK 4
 
 #endif
 

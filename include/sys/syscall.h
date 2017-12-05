@@ -6,7 +6,7 @@
 #define COURSEPROJ_SYSCALL_H
 #include <sys/defs.h>
 #include <sys/fs.h>
-#define MAXSYSCALLS 11
+#define MAXSYSCALLS 13
 
 uint64_t sys_getpid();
 int sys_write(int fd,char *msg,int size);
@@ -20,6 +20,8 @@ void syscall_handler();
 int sys_fork();
 int sys_read(int fd,char *msg,int size);
 void sys_exit(int status);
+int sys_waitpid(int pid, int *status);
+int sys_access(const char *pathname, int mode);
 
 #endif //COURSEPROJ_SYSCALL_H
 

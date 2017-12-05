@@ -3,6 +3,7 @@
 //
 
 #include <sys/defs.h>
+#include <stdlib.h>
 
 char *strcpy(char *String1, char *String2)
 {
@@ -64,7 +65,6 @@ void umemset(void* s, int num, int size)
     }
 }
 
-/*
 //function to concatenate two strings
 
 char *concat(char *string1,char *string2) {
@@ -75,11 +75,90 @@ char *concat(char *string1,char *string2) {
     while(string2[string2len] != '\0')
         ++string2len;
     string3len = string1len + string2len+1;
-    concatstr = (char *)bump(string3len * (uint64_t)sizeof(char));
+    concatstr = (char *)malloc(string3len * (uint64_t)sizeof(char));
     for(i=0; i<string1len; i++)
         concatstr[i] = string1[i];
     for(j=0; j<string2len; j++)
         concatstr[i + j] = string2[j];
     concatstr[i + j]='\0';
     return concatstr;
-}*/
+}
+
+void trim(char *string1) {
+    int length = strlen(string1);
+    string1[length - 1] = '\0';
+}
+
+//function to split the input string to tokens
+char  **tokenize(char *string)
+{
+    char **tokens=(char **)malloc(100*sizeof(char *));
+    int i = 0, j =0;
+    tokens[j]=(char *)malloc(1000*sizeof(char));
+    while(*string != '\0')
+    {
+        if ((*string != ' ') && (*string!='\n') )
+        {
+            *(*(tokens+j)+i) = *string;
+            i++;
+        }
+        else
+        {
+            j++;
+            if(*(string+1)!='\0')
+                tokens[j]=(char *)malloc(1000*sizeof(char));
+            i = 0;
+        }
+        string++;
+    }
+    return tokens;
+}
+
+//function to find no of tokens
+int tokencount(char **String)
+{
+    int i;
+    for(i=0;String[i]!=NULL;i++);
+    return i;
+}
+
+//function to check if a character is present in a string
+int contain(char *String,char c)
+{
+    int i,found=0;
+    for(i=0;String[i]!='\0';i++)
+        if(String[i]==c)
+        {
+            found=1;
+            break;
+        }
+    return found;
+}
+
+//function to split envValue by =
+char** tokenizepath(char* envValue) {
+    char **tokens=(char **)malloc(100*sizeof(char *));
+    int i = 0, j =0;
+    tokens[j]=(char *)malloc(1000*sizeof(char));
+    //while(*(envValue++) != '=');
+
+    while(*envValue != '\0')
+    {
+        if ((*envValue != ':'))
+        {
+            *(*(tokens+j)+i) = *envValue;
+            i++;
+        }
+        else
+        {
+            j++;
+            if(*(envValue+1)!='\0')
+                tokens[j]=(char *)malloc(1000*sizeof(char));
+            i = 0;
+        }
+        envValue++;
+    }
+    return tokens;
+
+    //puts(envValue);
+}

@@ -5,38 +5,6 @@
 #include <sys/virtualmem.h>
 #include <sys/allocator.h>
 #include <sys/io.h>
-void id_paging(uint64_t from, int size){
-    struct page_table_entry* first_page_table = bump(512 * sizeof(struct page_table_entry));
-    struct page_table_struct* first_page_directory = bump(512 * sizeof(struct page_table_struct));
-    struct page_table_struct* first_pdpt = bump(512 * sizeof(struct page_table_struct));
-    for (int i = 0; i < 512; i++) {
-        (first_page_table + i)->page_value = 0x0;
-    }
-    for (int i = 0; i < 512; i++) {
-        (first_page_directory + i)->page_value = 0x0;
-    }
-    for (int i = 0; i < 512; i++) {
-        (first_pdpt + i)->page_value = 0x0;
-    }
-    for (int i = 0; i < 512; i++) {
-        (pml4t_table + i)->page_value = 0x0;
-    }
-    first_page_directory->page_value = (uint64_t)first_page_table;
-    first_page_directory->present = 1;
-    first_page_directory->permission = 1;
-    first_pdpt->page_value = (uint64_t)first_page_directory;
-    first_pdpt->present = 1;
-    first_pdpt->permission = 1;
-    pml4t_table->page_value = (uint64_t)first_pdpt;
-    pml4t_table->present = 1;
-    pml4t_table->permission = 1;
-    from = from & 0xfffff000; // discard bits we don't want
-    for(;size>0;from+=4096,first_page_table++){
-        first_page_table->page_value = from|1;     // mark page present.
-        first_page_table->permission = 1;
-        size = size - 4096;
-    }
-}
 
 void flush_tlb()
 {
@@ -100,7 +68,7 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
     //kprintf("\nsize %d %d", size, size/4096);
     map_phy_address = map_phy_address & 0xfffff000; // discard bits we don't want
 
-    for(; size >= 0; map_phy_address+=4096, size-=4096, pt_index++){
+    for(; size > 0; map_phy_address+=4096, size-=4096, pt_index++){
         if (pdpt_index == 512) {
             pdpt_index = 0;
             pml4t_index++;

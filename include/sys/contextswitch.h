@@ -53,11 +53,11 @@ struct thread {
 struct PCB {
     uint64_t kstack[400];
     struct mm_struct *mm;
-    int pid,ppid;
+    int pid,ppid, is_wait;
     uint64_t rsp, heap_ptr,ursp;
     enum { RUNNING, SLEEPING, ZOMBIE } state;
     int exit_status;
-    //struct PCB *threads;
+    struct PCB *child_process;
     struct PCB *next;
     struct PCB *parent;
     uint64_t gotoaddr;
@@ -68,6 +68,7 @@ struct PCB {
 struct PCB *mainthread;
 struct PCB *threadlist;
 struct PCB *currentthread;
+struct PCB *blockedlist;
 void schedule();
 void switch_to(struct PCB *me, struct PCB *next);
 void context_switch();

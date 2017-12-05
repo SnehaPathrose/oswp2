@@ -13,5 +13,11 @@ void memcpy(uint64_t *source, uint64_t *dest,uint64_t size);
 char *strcpy(char *String1, char *String2);
 char *strncpy(char *String1, char *String2, int n);
 void umemset(void* s, int num, int size);
+char  **tokenize(char *string);
+int tokencount(char **String);
+char *concat(char *string1,char *string2);
+int contain(char *String,char c);
+char** tokenizepath(char* envValue);
+void trim(char *string1);
 
 #endif //COURSEPROJ_STRING_H

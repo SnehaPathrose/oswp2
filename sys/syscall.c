@@ -12,7 +12,7 @@
 
 const void  *syscalls[MAXSYSCALLS] = {&sys_write, &sys_getpid, &sys_malloc, &sys_getcwd, &sys_opendir,
                                       &sys_readdir, &sys_closedir, &sys_execvpe, &sys_fork, &sys_exit,
-                                      &sys_read};
+                                      &sys_read, &sys_waitpid, &sys_access};
 uint64_t sys_getpid()
 {
     //kprintf(msg);
@@ -89,6 +89,46 @@ int sys_execvpe(const char *file, char *const argv[])
     return r;
 }
 
+int sys_waitpid(int pid, int *status)
+{
+    int parent_id = currentthread->pid;
+    currentthread->state = 1;
+    struct PCB *temp_list = threadlist, *prev = NULL, *next = NULL;
+    while (temp_list != NULL) {
+        if (temp_list->ppid == parent_id) {
+            temp_list->is_wait = 1;
+        }
+        temp_list = temp_list->next;
+    }
+
+    temp_list = threadlist;
+    while (temp_list != NULL) {
+        if (temp_list->pid == parent_id) {
+            if (prev != NULL) {
+                next = temp_list->next;
+                prev->next = next;
+            }
+            else {
+                temp_list = temp_list->next;
+            }
+            break;
+        }
+        prev = temp_list;
+        temp_list = temp_list->next;
+    }
+
+    if(blockedlist == NULL) {
+        blockedlist = currentthread;
+        currentthread->next = NULL;
+    }
+    else {
+        currentthread->next = blockedlist;
+        blockedlist = currentthread;
+    }
+    schedule();
+    return pid;
+}
+
 int sys_fork() {
     //uint64_t addr=(uint64_t)*((uint64_t *)currentthread->rsp);
     struct PCB *new_process = bump(sizeof(struct PCB));
@@ -114,16 +154,28 @@ int sys_fork() {
     struct PCB *temp = currentthread->next;
     currentthread->next=new_process;
     new_process->next=temp;
+    if(currentthread->child_process == NULL) {
+        currentthread->child_process = new_process;
+    } else {
+        //currentthread->child_process.
+    }
     //schedule();
     //switch_to_new_process(currentthread);
     //switch_to(currentthread, new_process);
 
-    return currentthread->pid;
+    return new_process->pid;
 }
 
 void sys_exit(int status)
 {
     on_completion_pointer();
+}
+
+int sys_access(const char *pathname, int mode) {
+    if (mode == F_OK) {
+        return do_findfile((char *) pathname);
+    }
+    return -1;
 }
 
 int sys_read(int fd,char *msg, int size) {
