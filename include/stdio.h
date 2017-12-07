@@ -8,5 +8,7 @@ int puts(const char *s);
 int printf(const char *format, ...);
 int getchar();
 char *gets(char *s);
+char* fgets(int fileDescriptor, char* stringVal, int size);
 
 #endif
+

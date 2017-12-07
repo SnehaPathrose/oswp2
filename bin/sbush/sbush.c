@@ -2,25 +2,25 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#define BIN "/bin/"
+#define BIN "bin/"
 
 
 //function to run background/foreground process
 void bg_fg_process(char **command)
 {
-    int ret,status,commandc;
+    int status,commandc;
     char *filename = 0;
     pid_t pid;
     commandc = tokencount(command);
     //filename = concat(BIN,command[0]);
     //if(access(filename,F_OK)< 0)
-        //filename=concat("/usr/",filename);
+    //filename=concat("/usr/",filename);
     pid = fork();
     if(pid == 0)
     {
-        if(strcmp("&", command[commandc-1]) == 0)
-            command[commandc-1]=NULL;
-        if((strcmp(command[0],"ls")==0) || (strcmp(command[0],"cat")==0))
+       /* if(strcmp("&", command[commandc-1]) == 0)
+            command[commandc-1]=NULL;*/
+        if((strcmp(command[0],"ls")==0) || (strcmp(command[0],"cat")==0) || (strcmp(command[0],"kill")==0) || (strcmp(command[0],"ps")==0) || (strcmp(command[0],"echo")==0) || (strcmp(command[0],"sleep")==0))
         {
             filename = concat("bin/",command[0]);
 
@@ -56,10 +56,7 @@ void bg_fg_process(char **command)
             exit(0);
         }
         //char *envp[] = { NULL };
-        ret=execvpe(filename,(char * const *)command/*, envp*/);
-        if(ret<0)
-            puts("Command not found\n");
-        exit(0);
+        execvpe(filename,(char * const *)command/*, envp*/);
     }
     else if(pid > 0)
     {
@@ -72,19 +69,95 @@ void bg_fg_process(char **command)
             return;
         }
     }
-    else if(pid<0)
-    {
-        puts("Error in forking\n");
-    }
     //free(filename);
+}
+
+//function to execute scripts
+int execscripts(char **command)
+{
+    int fileptr;
+    char *filename;
+    pid_t pid;
+    char *line,**split;
+    int status;
+
+
+    //puts(command[0]);
+    if(command[0][0]=='.')
+    {
+        char *cwd;
+        char *buf=(char *)malloc(50);
+        cwd=getcwd(buf,50);
+        filename=concat(cwd,command[0]+2);
+    }
+    else
+        filename=command[0];
+
+    fileptr = open(filename, 0);
+    if(fileptr < 0)
+    {
+        /*int i = 0;
+        char** abc = tokenizepath(getenv("PATH"));
+        while(abc[i] != '\0') {
+            abc[i] = concat(abc[i], "/");
+            abc[i] = concat(abc[i], command[1]);
+            filename = fopen(abc[i], O_RDONLY);
+            if (filename > 0)
+                break;
+
+            i++;
+        }
+        if (filename < 0) {*/
+        puts("File Not Found\n");
+        return 1;
+        /*}*/
+
+    }
+    line = (char *)malloc(500*sizeof(char));
+    line = fgets(fileptr, line, 500);
+    /*int fileptr = 0;
+    fileptr = strlen(line) + 1;*/
+    if(strcmp(line,"#!/bin/sbush")!=0)
+    {
+        puts("Script cannot be executed in this shell\n");
+        return 1;
+    }
+
+    while(*line != EOF)
+    {
+        umemset(line, 0, strlen(line));
+        line=fgets(fileptr, line, 500);
+        // fileptr += strlength(line) + 1;
+        if (line[0] == EOF)
+            break;
+        if(line[0]=='#')
+            continue;
+        split=tokenize(line);
+        pid=fork();
+        if(pid==0)
+        {
+            bg_fg_process(split);
+            exit(0);
+
+        }
+        else
+        if(pid>0)
+        {
+            waitpid(pid,&status);
+        }
+    }
+    close(fileptr);
+    return 0;
 }
 
 //function to map the command in the input string to its execution
 void mapFunction(char* inputString)
 {
     char **tokens;
-    //int status,i;
+   // int status;
     tokens = tokenize(inputString);
+    if(tokens[0][0]=='/' || tokens[0][0]=='.')
+        execscripts(tokens);
 
     /*//checking if it is change directory command
     if(compare("cd", tokens[0]) == 0)
@@ -114,8 +187,8 @@ void mapFunction(char* inputString)
         pipecmd(inputString);
     else*/
 
-        //other commands
-        bg_fg_process(tokens);
+    //other commands
+    bg_fg_process(tokens);
 
 }
 

@@ -23,6 +23,14 @@ struct filesys_tnode* find_file_from_root(struct filesys_tnode *current_node, ch
                             return ret;
                     }
                 }
+                if (current_inode->num_sub_files > 0) {
+                    depth++;
+                    for (int i = 0; i < current_inode->num_sub_files; i++) {
+                        ret=find_file_from_root(&current_inode->sub_files_list[i], file_name, depth, total_depth);
+                        if(ret!=NULL)
+                            return ret;
+                    }
+                }
             }
             if(current_inode->flags == FS_FILE) {
                 if ((current_inode->num_sub_files > 0) && (depth == total_depth)) {
@@ -70,12 +78,26 @@ int open_vfs(struct filesys_node *node, char *file_name) {
     return 0;
 }
 
-int read_vfs(struct filesys_node *node, uint64_t *buf, int size, int offset) {
-    if (node->read != 0) {
-        int retval = node->read(buf, size, offset, node->starting_position);
+int read_vfs(struct filesys_tnode *node, char *buf, int size) {
+    if (node->link_to_inode->read != 0) {
+        uint64_t position = node->link_to_inode->starting_position + node->link_to_inode->offset;
+        uint64_t end = node->link_to_inode->starting_position + node->size;
+        if(position>=end)
+            return -1;
+        if(size>node->size)
+        {
+            size=(int)end-position;
+        }
+        int retval = node->link_to_inode->read(buf, size, position);
+        node->link_to_inode->offset=node->link_to_inode->offset+retval;
         return retval;
     }
     return 0;
+}
+int do_fread(char *buf, int size, uint64_t position)
+{
+    kmemcpychar((void *)position,(void *)buf,size);
+    return size;
 }
 
 int write_vfs(struct filesys_node *node, char *buf, int size, int offset) {
@@ -85,8 +107,28 @@ int write_vfs(struct filesys_node *node, char *buf, int size, int offset) {
     }
     return 0;
 }
+struct filesys_tnode *copytnode(struct filesys_tnode *item)
+{
+    struct filesys_tnode *current_tnode = bump(sizeof(struct filesys_tnode));
+    kstrcopy(current_tnode->name,item->name);
+    current_tnode->size=item->size;
+    struct filesys_node *current_node = bump(sizeof(struct filesys_node));
+    current_node->offset=item->link_to_inode->offset;
+    current_node->starting_position=item->link_to_inode->starting_position;
+    current_node->write=item->link_to_inode->write;
+    current_node->flags=item->link_to_inode->flags;
+    current_node->num_sub_directory=0;
+    current_node->num_sub_files=0;
+    current_node->sub_directory_list=0;
+    current_node->sub_files_list=0;
+    current_node->open=item->link_to_inode->open;
+    current_node->perms=item->link_to_inode->perms;
+    current_node->read=item->link_to_inode->read;
+    current_tnode->link_to_inode=current_node;
+    return  current_tnode;
 
-int do_open(char *file_name) {
+}
+int do_dopen(char *file_name) {
     struct filesys_tnode *item = find_file(file_name);
     if (item == NULL) {
         kprintf("\n File not found");
@@ -95,6 +137,22 @@ int do_open(char *file_name) {
     for (int i = 0; i < 100; i++) {
         if (file_descriptors[i] == NULL) {
             file_descriptors[i] = item;
+            return i;
+        }
+    }
+    return -1;
+}
+int do_fopen(char *file_name) {
+    struct filesys_tnode *item = find_file(file_name);
+    struct filesys_tnode *copyitem;
+    copyitem=copytnode(item);
+    if (item == NULL) {
+        kprintf("\n File not found");
+        return -1;
+    }
+    for (int i = 3; i < 100; i++) {
+        if (file_descriptors[i] == NULL) {
+            file_descriptors[i] = copyitem;
             return i;
         }
     }
@@ -114,10 +172,11 @@ DIR *do_opendir(char *dirname)
 {
     DIR *dirptr = NULL;
     int fd,i,j;
-    fd=do_open(dirname);
+    fd=do_dopen(dirname);
     struct filesys_node *inode = file_descriptors[fd]->link_to_inode;
     int totalfiles= inode->num_sub_files+inode->num_sub_directory;
-    dirptr=bump(totalfiles* sizeof(DIR));
+    dirptr=bump_user(totalfiles* sizeof(DIR));
+    memset(dirptr, 0, totalfiles* sizeof(DIR));
     for(i=0;i<inode->num_sub_directory;i++)
     {
         kstrcopy(dirptr[i].d_name,inode->sub_directory_list[i].name);
@@ -129,6 +188,15 @@ DIR *do_opendir(char *dirname)
         kstrcopy(dirptr[i].d_name,inode->sub_files_list[j].name);
         dirptr[i].d_no=0;
         dirptr[i].fd=fd;
+        if (inode->sub_files_list[j].link_to_inode->link_to_process != NULL) {
+            if (inode->sub_files_list[j].link_to_inode->link_to_process->state == 0)
+                dirptr[i].state = 0;
+            else if (inode->sub_files_list[j].link_to_inode->link_to_process->state == 1)
+                dirptr[i].state = 1;
+            else if (inode->sub_files_list[j].link_to_inode->link_to_process->state == 2)
+                dirptr[i].state = 2;
+            //dirptr[i].state = inode->sub_files_list[j].link_to_inode->link_to_process->state;
+        }
         i++;
     }
     return dirptr;
@@ -140,8 +208,10 @@ struct dirent *do_readdir(DIR *dir)
     int i;
     for(i=0;dir[i].d_no==1;i++);
     if(kstrlength(dir[i].d_name)>0)
-    {file=dir+i;
-        dir[i].d_no=1;}
+    {
+        file=dir+i;
+        dir[i].d_no=1;
+    }
     return file;
 }
 
@@ -160,6 +230,19 @@ int do_closedir(DIR *dirp)
             return 0;
         }
     }
+    return -1;
+}
+
+int do_close(int fd)
+{
+    for (int i = 0; i < 100; i++) {
+        if(i==fd) {
+            file_descriptors[i] = 0;
+            return 0;
+        }
+
+    }
+
     return -1;
 }
 
@@ -194,9 +277,11 @@ struct filesys_node * create_sys_node() {
 
 struct filesys_tnode * create_t_node(char name[256]) {
     struct filesys_tnode *current_node = bump(sizeof(struct filesys_tnode));
-    for (int i = 0; i< kstrlength(name); i++) {
+    int i = 0;
+    for (i = 0; i< kstrlength(name); i++) {
         current_node->name[i] = name[i];
     }
+    current_node->name[i] = '\0';
     current_node->link_to_inode = create_sys_node();
     //current_node->write = do_write;
     return current_node;
@@ -309,7 +394,10 @@ void load_tarfs(struct filesys_tnode *current_node)
                 if (exist_node == NULL) {
                     struct filesys_tnode *new_node = create_t_node(sub_name[l]);
                     new_node->link_to_inode->flags = FS_FILE;
+                    new_node->link_to_inode->read = do_fread;
                     new_node->size = size;
+                    new_node->link_to_inode->starting_position=(uint64_t)tarfs+ sizeof(struct posix_header_ustar);
+                    new_node->link_to_inode->offset=0;
                     if (active_node->link_to_inode->num_sub_files == 0) {
                         active_node->link_to_inode->sub_files_list = new_node;
                     }
@@ -350,10 +438,13 @@ void initialise_tarfs() {
 void initialise_file_system() {
     filefs_root = create_t_node("/");
     struct filesys_tnode *dev_directory = create_t_node("dev/");
+    proc_directory = create_t_node("proc/");
     struct filesys_tnode *terminal = create_t_node("ttyl");
     filefs_root->link_to_inode->sub_directory_list = dev_directory;
     filefs_root->link_to_inode->num_sub_directory++;
     filefs_root->link_to_inode->flags = FS_MOUNTPOINT;
+    filefs_root->link_to_inode->sub_directory_list[filefs_root->link_to_inode->num_sub_directory] = *proc_directory;
+    filefs_root->link_to_inode->num_sub_directory++;
     dev_directory->link_to_inode->sub_files_list = terminal;
     dev_directory->link_to_inode->num_sub_files++;
     dev_directory->link_to_inode->flags = FS_MOUNTPOINT;
@@ -364,12 +455,15 @@ void initialise_file_system() {
 
     //for testing
     // print_path(filefs_root);
-    DIR *dir = do_opendir("/rootfs/bin/");
-    DIR *dirent;
-    dirent=do_readdir(dir);
-    kprintf(dirent->d_name);
-    dirent=do_readdir(dir);
-    kprintf(dirent->d_name);
-    do_closedir(dir);
+    proc_directory->link_to_inode->flags = FS_MOUNTPOINT;
+    /* DIR *dir = do_opendir("/rootfs/bin/");
+     DIR *dirent;
+     dirent=do_readdir(dir);
+     kprintf(dirent->d_name);
+     dirent=do_readdir(dir);
+     kprintf(dirent->d_name);
+     do_closedir(dir);*/
 }
+
+
 

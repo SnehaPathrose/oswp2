@@ -16,7 +16,6 @@ void initbump(void *physbase, void *physfree, void *physend) {
     int k = 0;
     struct free_list* temp_free = (struct free_list*)physfree;
     head_free = temp_free;
-    kprintf("Size of node: %d", sizeof(struct free_list));
 
     for (uint64_t i = (uint64_t)physfree, j = (uint64_t)physfree; i <= (uint64_t)(physend-4096); i+=4096, j+=16) {
         temp_free = (struct free_list*)j;
@@ -53,6 +52,29 @@ void init_after_paging() {
 }
 
 void *bump(uint64_t size)
+{
+    uint64_t ret;
+    num_of_pages = size / 4096;
+    if (((size / 4096) * 4096) < size) {
+        num_of_pages++;
+    }
+
+    if (num_of_pages > number_of_free_pages) {
+        return 0;
+    }
+    else {
+        ret = head_free->current;
+        while (num_of_pages != 0) {
+            head_free = head_free->next;
+            num_of_pages--;
+            number_of_free_pages--;
+        };
+    }
+    map_address((uint64_t) (ret + KERNBASE), (uint64_t) ((uint64_t) ret ));
+    return (void *)(ret + KERNBASE);
+}
+
+void *bump_initial(uint64_t size)
 {
     uint64_t ret;
     num_of_pages = size / 4096;
@@ -125,5 +147,24 @@ void *bump_physical(uint64_t size)
 }
 
 void kfree(void *freed_pointer) {
-
+    struct free_list* temp_free = head_free;
+    while (temp_free->next != NULL) {
+        //temp_free->next = (struct free_list*)((uint64_t)temp_free->next + KERNBASE);
+        temp_free = temp_free->next;
+    }
+    struct free_list* new_page = (struct free_list*)freed_pointer;
+    uint64_t phy_address = 0;
+    if (((uint64_t)freed_pointer & KERNBASE) == KERNBASE) {
+        phy_address = (uint64_t)freed_pointer - KERNBASE;
+    }
+    else if (((uint64_t)freed_pointer & USERBASE) == USERBASE) {
+        phy_address = (uint64_t)freed_pointer - USERBASE;
+    }
+    else {
+        phy_address = (uint64_t)freed_pointer;
+    }
+    new_page->current = phy_address;
+    new_page->next = NULL;
+    temp_free->next = new_page;
+    number_of_free_pages++;
 }

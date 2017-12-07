@@ -6,7 +6,7 @@
 #define COURSEPROJ_SYSCALL_H
 #include <sys/defs.h>
 #include <sys/fs.h>
-#define MAXSYSCALLS 13
+#define MAXSYSCALLS 20
 
 uint64_t sys_getpid();
 int sys_write(int fd,char *msg,int size);
@@ -16,12 +16,19 @@ DIR *sys_opendir(char *dirname);
 struct dirent *sys_readdir(DIR *dirp);
 int sys_closedir(DIR *dirp);
 int sys_execvpe(const char *file, char *const argv[]);
-void syscall_handler();
+void syscall_handler(void *sysaddress);
 int sys_fork();
-int sys_read(int fd,char *msg,int size);
+int64_t sys_read(int fd,char *msg,int size);
 void sys_exit(int status);
-int sys_waitpid(int pid, int *status);
+uint32_t sys_waitpid(uint32_t pid, int *status);
 int sys_access(const char *pathname, int mode);
+int sys_kill(uint32_t pid, int sig);
+int sys_open(const char *pathname, int flags);
+int sys_close(int fd);
+unsigned int sys_sleep(unsigned int seconds);
+void initialise_syscalls();
 
+const void  *syscalls[MAXSYSCALLS] ;
 #endif //COURSEPROJ_SYSCALL_H
+
 

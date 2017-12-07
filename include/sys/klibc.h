@@ -12,5 +12,7 @@ void kmemcpy(uint64_t *source, uint64_t *dest,uint64_t size);
 uint64_t roundup(uint64_t size);
 char *kstrcopy(char *String1, char *String2);
 char *kstrncopy(char *String1, char *String2, int n);
+char *kstrcat(char *string1,char *string2);
+void kmemcpychar(void *source, void *dest,uint64_t size);
 #endif //COURSEPROJ_KLIBC_H
 

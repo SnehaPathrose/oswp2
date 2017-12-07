@@ -16,4 +16,6 @@ uint64_t get_unallocated();
 void init_after_paging();
 void *bump_user(uint64_t size);
 void *bump_physical(uint64_t size);
+void kfree(void *freed_pointer);
+void *bump_initial(uint64_t size);
 #endif //OSWP2_ALLOCATOR_H

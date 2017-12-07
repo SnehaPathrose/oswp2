@@ -5,6 +5,7 @@
 #include <sys/allocator.h>
 #include <sys/defs.h>
 #include <sys/klibc.h>
+#include <sys/io.h>
 
 /*
  * Function:  memset
@@ -48,6 +49,18 @@ void kmemcpy(uint64_t *source, uint64_t *dest,uint64_t size)
     size=size/8;
     for(i=0;i<=size;i++) {
         *(dest+i) = *(source+i);
+
+    }
+}
+
+void kmemcpychar(void *source, void *dest,uint64_t size)
+{
+    unsigned char *us = source;
+    unsigned char *ud = dest;
+    for (int i = 0; i < size; i++) {
+        *(ud + i) = *(us + i);
+        //us++;
+        //ud++;
 
     }
 }

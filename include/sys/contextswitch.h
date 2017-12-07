@@ -50,10 +50,19 @@ struct thread {
     //ktime_t     sleepTimeDelta;
 };
 
+struct registers
+{
+    uint64_t rax;
+    uint64_t rdi;
+    uint64_t rsi;
+    uint64_t rdx;
+};
+
 struct PCB {
     uint64_t kstack[400];
     struct mm_struct *mm;
-    int pid,ppid, is_wait;
+    uint32_t pid,ppid;
+    int is_wait;
     uint64_t rsp, heap_ptr,ursp;
     enum { RUNNING, SLEEPING, ZOMBIE } state;
     int exit_status;
@@ -62,6 +71,10 @@ struct PCB {
     struct PCB *parent;
     uint64_t gotoaddr;
     struct pml4t *page_table;
+    uint64_t rax;
+    uint64_t rdx;
+    uint64_t rdi;
+    uint64_t rsi;
     char cwd[50];
 };
 
@@ -84,4 +97,5 @@ struct PCB *create_thread(uint64_t faddr);
 #define HEAP 0x02
 #define OTHER 0x03
 #endif //COURSEPROJ_CONTEXTSWITCH_H
+
 

@@ -8,6 +8,28 @@
 #include <sys/tarfs.h>
 #include <sys/io.h>
 #include <sys/klibc.h>
+#include <sys/fs.h>
+
+void add_to_proc_list(struct PCB* process) {
+    char process_name[10];
+    int i = 0, intvalue = process->pid;
+    while(intvalue!=0)
+    {
+        process_name[i++] = intvalue % 10 + '0';
+        intvalue = intvalue / 10;
+    }
+    process_name[i] = '\0';
+    struct filesys_tnode *process_node = create_t_node(process_name);
+    process_node->link_to_inode->link_to_process = process;
+    //kprintf("Num of subfiles: %d", proc_directory->link_to_inode->num_sub_files);
+    if (proc_directory->link_to_inode->num_sub_files == 0) {
+        proc_directory->link_to_inode->sub_files_list = process_node;
+    }
+    else {
+        proc_directory->link_to_inode->sub_files_list[proc_directory->link_to_inode->num_sub_files] = *process_node;
+    }
+    proc_directory->link_to_inode->num_sub_files++;
+}
 
 void user_process()
 {
@@ -31,6 +53,8 @@ void user_process()
         processcount++;
         process->pid=processcount;
         process->ppid=0;
+        add_to_proc_list(process);
+        flush_tlb();
         switch_to_ring_3(process);
     }
 }
@@ -43,31 +67,28 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
     new_process->state=1;
 
     new_process->mm = bump(sizeof(struct mm_struct));
+    //map_address((uint64_t) new_process->mm, (uint64_t) ((uint64_t) new_process->mm - KERNBASE));
     processcount++;
     new_process->pid=processcount;
     new_process->ppid=current_process->pid;
     new_process->mm->num_of_vmas = current_process->mm->num_of_vmas;
     new_process->mm->list_of_vmas = bump(sizeof(struct vm_area_struct));
+    //map_address((uint64_t) new_process->mm->list_of_vmas, (uint64_t) ((uint64_t) new_process->mm->list_of_vmas - KERNBASE));
     struct vm_area_struct *vma, *tempvma = NULL;
     //struct file *tempfile;
     struct vm_area_struct *temp_area_struct = current_process->mm->list_of_vmas;
     while (temp_area_struct != NULL) {
         if(temp_area_struct->vma_type == HEAP) {
-            uint64_t heapsize=temp_area_struct->vma_end - temp_area_struct->vma_start;
-            vma=createheap(heapsize,new_process,0x05);
-            kmemcpy((uint64_t *)temp_area_struct->vma_start,(uint64_t *)vma->vma_start,heapsize);
-        }
-        else if(temp_area_struct->vma_type == STACK) {
-            uint64_t addr,offset=0;
-            //__asm__ volatile("\t movq 216(%%rsp),%0\n" :: "r"(tss->rsp) );
+            uint64_t heapsize = temp_area_struct->vma_end - temp_area_struct->vma_start;
+            //vma=createheap(heapsize,new_process,0x05);
+            //uint64_t *heap = bump_user(size);
+            //map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
+            //memset((void *)heap,0,size);
             vma = bump(sizeof(struct vm_area_struct));
-            uint64_t *stack = bump_user(4096);
-            map_user_address((uint64_t)stack,(uint64_t)stack, 4096, (struct pml4t *)((uint64_t)new_process->page_table + KERNBASE),0x05);
-            kmemcpy((uint64_t *)temp_area_struct->vma_start,stack,4096);
+            vma->vma_type = HEAP;
             vma->vma_file = NULL;
-            vma->vma_type=STACK;
-            vma->vma_start = (uint64_t)stack;
-            vma->vma_end = (uint64_t)stack + 4095;
+            vma->vma_start = temp_area_struct->vma_start;
+            vma->vma_end = temp_area_struct->vma_end;
             tempvma = new_process->mm->list_of_vmas;
             while (tempvma->next != NULL)
                 tempvma = tempvma->next;
@@ -75,23 +96,52 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
             vma->prev = tempvma;
             tempvma->next = vma;
             vma->next = NULL;
-            for(addr=temp_area_struct->vma_end;addr>=temp_area_struct->vma_start;addr--)
+            new_process->mm->num_of_vmas++;
+            new_process->heap_ptr = current_process->heap_ptr;
+
+
+            kmemcpy((uint64_t *)temp_area_struct->vma_start,(uint64_t *)vma->vma_start,heapsize);
+        }
+        else if(temp_area_struct->vma_type == STACK) {
+            //uint64_t addr,offset=0;
+            //__asm__ volatile("\t movq 216(%%rsp),%0\n" :: "r"(tss->rsp) );
+            vma = bump(sizeof(struct vm_area_struct));
+            //uint64_t *stack = bump_user(4096);
+            //stack = stack + 8192;
+            //map_user_address((uint64_t)stack,(uint64_t)stack, 4096, (struct pml4t *)((uint64_t)new_process->page_table + KERNBASE),0x05);
+            //kmemcpy((uint64_t *)temp_area_struct->vma_start,stack,4096);
+            vma->vma_file = NULL;
+            vma->vma_type = STACK;
+            vma->vma_start = (uint64_t)temp_area_struct->vma_start;
+            vma->vma_end = temp_area_struct->vma_end;
+            //kprintf("\n Value of stack start: %x", vma->vma_start);
+            //kprintf("\n Value of stack end: %x", vma->vma_end);
+            tempvma = new_process->mm->list_of_vmas;
+            while (tempvma->next != NULL)
+                tempvma = tempvma->next;
+            //tempvma = vma;
+            vma->prev = tempvma;
+            tempvma->next = vma;
+            vma->next = NULL;
+            /*for(addr=temp_area_struct->vma_end;addr>=temp_area_struct->vma_start;addr--)
             {
                 if(addr==currentthread->ursp)
                 {
                     offset=temp_area_struct->vma_end-addr;
                     break;
                 }
-            }
-            new_process->ursp=vma->vma_end-offset;
+            }*/
+            new_process->ursp=currentthread->ursp;
         }
         else {
             vma = bump(sizeof(struct vm_area_struct));
+            //map_address((uint64_t) vma, (uint64_t) ((uint64_t) vma - KERNBASE));
             vma->vma_start = temp_area_struct->vma_start;
             vma->vma_end = temp_area_struct->vma_end;
             vma->vma_flags = temp_area_struct->vma_flags;
             if (temp_area_struct->vma_file != NULL) {
                 vma->vma_file = (struct file *) bump(sizeof(struct file));
+                //map_address((uint64_t) vma->vma_file, (uint64_t) ((uint64_t) vma->vma_file - KERNBASE));
                 vma->vma_file->bss_size = temp_area_struct->vma_file->bss_size;
                 vma->vma_file->file_start = temp_area_struct->vma_file->bss_size;
                 vma->vma_file->vm_pgoff = temp_area_struct->vma_file->vm_pgoff;
@@ -107,6 +157,7 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
             {
                 vma->prev = tempvma;
             }
+            new_process->mm->num_of_vmas++;
             tempvma = vma;
 
             //vma=vma->next;
@@ -123,10 +174,11 @@ struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t fl
 {
     struct vm_area_struct *vma,*tempvma;
     uint64_t *heap = bump_user(size);
-    map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
-    memset((void *)heap,0,size);
+    //map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
+    //memset((void *)heap,0,size);
     //kprintf("\nValue of heap: %x", (uint64_t)heap);
     vma = bump(sizeof(struct vm_area_struct));
+    //map_address((uint64_t) vma, (uint64_t) ((uint64_t) vma - KERNBASE));
     vma->vma_type = HEAP;
     vma->vma_file = NULL;
     vma->vma_start = (uint64_t)heap;
@@ -138,6 +190,7 @@ struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t fl
     vma->prev = tempvma;
     tempvma->next = vma;
     vma->next = NULL;
+    process->mm->num_of_vmas++;
     process->heap_ptr = (uint64_t)heap;
     return vma;
 }
@@ -199,9 +252,9 @@ void clear_kernelstack()
 }
 int do_execvpe(const char *file, char *const argv[])
 {
-    char filename[20], args[5][8];
+    char filename[20], args[5][40];
     int i,argc=0;
-    uint64_t *stack=NULL;
+    char *stack=NULL,*temp=NULL;
     kstrcopy(filename,(char *)file);
     // memset(args,'\0', sizeof(args));
     for(i=0;argv[i]!=0;i++) {
@@ -212,18 +265,31 @@ int do_execvpe(const char *file, char *const argv[])
     clear_vmas();
     clear_uptentries();
     loadelf(filename,currentthread);
-    stack = (uint64_t *) currentthread->ursp;
+    stack = (char *) currentthread->ursp;
 
 
-    kmemcpy((uint64_t *)args,stack-argc,(uint64_t) (argc * 8));
-    //*(stack-(argc-i))=(uint64_t)args[i];
-    for(i=1;i<=argc;i++) {
-        *(stack - (argc + i)) = (uint64_t) (stack - i);
+    for(i=argc-1;i>=0;i--)
+    {
+        stack=stack-kstrlength(args[i])-1;
+        kstrcopy(stack,args[i]);
+
+
     }
-    *(stack-((2*argc)+1))=(uint64_t)(stack-(2*argc));
-    *(stack-((2*argc)+2))=argc;
+    temp=(char *)currentthread->ursp;
+    currentthread->ursp=(uint64_t)stack;
+    //*(stack-(argc-i))=(uint64_t)args[i];
+    for(i=argc;i>=1;i--) {
+        temp=(char *)(temp - kstrlength(args[i-1])-1);
+        *((uint64_t *)currentthread->ursp-(argc-i+1))=(uint64_t)temp;
+    }
+    currentthread->ursp=(uint64_t)((uint64_t *)currentthread->ursp-argc);
+    *((uint64_t *)currentthread->ursp-1)=(uint64_t)currentthread->ursp;
+    *((uint64_t *)currentthread->ursp-2)=argc;
+
+    //*(stack-((2*argc)+1))=(uint64_t)(stack-2);
+    //*(stack-((2*argc)+2))=argc;
     //*(stack-((2*argc)+3))=0xf;
-    currentthread->ursp=(uint64_t)(stack-((2*argc)+2));
+    currentthread->ursp=(uint64_t)((uint64_t *)currentthread->ursp-2);
     clear_kernelstack();
     switch_to_ring_3(currentthread);
 

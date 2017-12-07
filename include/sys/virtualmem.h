@@ -103,6 +103,8 @@ struct pml4t* map_user_pml4();
 void map_user_address(uint64_t address, uint64_t map_phy_address, int size_to_map, struct pml4t *map_table, uint64_t flags);
 struct pml4t* duplicate_page_table(struct pml4t *source_table);
 struct pml4t* copy_pml4(struct pml4t *user_table);
+void map_address_initial(uint64_t address, uint64_t map_phy_address);
+void copy_page(struct pml4t *user_table, uint64_t page);
 
 #define	KERNBASE	0xffffffff80000000
 #define	USERBASE	0xFFFFCCCC00000000

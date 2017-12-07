@@ -82,7 +82,6 @@ void init_gdt() {
     sd->sd_hilimit = 0;
     sd->sd_gran = 0;
     sd->sd_hibase = ((uint64_t)&tss) >> 24;
-    kprintf("Size of gdt: %d", sizeof(gdt[0]));
     _x86_64_asm_lgdt(&gdtr, 8, 16);
     _x86_64_asm_ltr(0x30);
 }

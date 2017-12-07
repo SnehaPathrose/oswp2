@@ -8,6 +8,7 @@
 #include <sys/pci.h>
 #include <sys/allocator.h>
 #include <sys/fs.h>
+#include <sys/syscall.h>
 
 #define INITIAL_STACK_SIZE 4096
 uint8_t initial_stack[INITIAL_STACK_SIZE]__attribute__((aligned(16)));
@@ -24,25 +25,25 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     while(modulep[0] != 0x9001) modulep += modulep[1]+2;
     for(smap = (struct smap_t*)(modulep+2); smap < (struct smap_t*)((char*)modulep+modulep[1]+2*4); ++smap) {
         if (smap->type == 1 /* memory */ && smap->length != 0) {
-            kprintf("smaplength is %x, smapbase is %x\n", smap->length,
-                   smap->base);
-            kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
+            //kprintf("smaplength is %x, smapbase is %x\n", smap->length,
+            //smap->base);
+            //kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
 
             if ((uint64_t)physfree>smap->base && (uint64_t)physfree<(smap->base + smap->length))
                 physend = smap->base + smap->length;
         }
     }
 
-    kprintf("physfree %p\n", (uint64_t)physfree);
-    kprintf("Kernmem %p\n", (uint64_t)kernmem);
-    kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
+    //kprintf("physfree %p\n", (uint64_t)physfree);
+    //kprintf("Kernmem %p\n", (uint64_t)kernmem);
+    //kprintf("tarfs in [%p:%p]\n", &_binary_tarfs_start, &_binary_tarfs_end);
     initbump(physbase, physfree, (void *)physend);
-    pml4t_t = (struct pml4t*)bump(sizeof(struct pml4t));
+    pml4t_t = (struct pml4t*)bump_initial(sizeof(struct pml4t));
     for (int i = 0; i < 512; i++) {
         pml4t_t->PML4Entry[i].page_value = 0x0;
     }
     init_paging(physfree);
-    kprintf("Current unallocated %x", get_unallocated());
+    //kprintf("Current unallocated %x", get_unallocated());
     uint64_t pml4t_t_phy = (uint64_t)pml4t_t - KERNBASE;
     __asm volatile("mov %0, %%cr3":: "r"(pml4t_t_phy));
     __asm__("\t mov %cr0,%rax\n" );
@@ -59,6 +60,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     mainthread->page_table = (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
     currentthread = mainthread;
     initialise_file_system();
+    initialise_syscalls();
     context_switch();
     //checkbus();
     /*for(
@@ -68,7 +70,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
             ) *temp2 = *temp1;
     temp2 = (char*)(0xb8eec);
     *temp2 = ':';
-    
+
     for(
             temp1 = "Time since boot", temp2 = (char*)(0xb8f62);
             *temp1;
@@ -78,7 +80,10 @@ void start(uint32_t *modulep, void *physbase, void *physfree)
     *temp2 = ':';
 
     checkbus();*/
-    while(1);
+    while(1)
+    {
+        schedule();
+    }
 }
 
 void boot(void)
@@ -111,3 +116,4 @@ void boot(void)
             ) *temp2 = *temp1;
     while(1) __asm__ volatile ("hlt");
 }
+

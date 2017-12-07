@@ -6,6 +6,8 @@
 struct dirent {
     char d_name[NAME_MAX+1];
     int d_no;
+    int fd;
+    int state;
 };
 
 typedef struct dirent DIR;
@@ -15,4 +17,5 @@ struct dirent *readdir(DIR *dirp);
 int closedir(DIR *dirp);
 
 #endif
+
 

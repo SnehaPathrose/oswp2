@@ -19,5 +19,7 @@ char *concat(char *string1,char *string2);
 int contain(char *String,char c);
 char** tokenizepath(char* envValue);
 void trim(char *string1);
+int atoi(char *s);
+void memcpychar(void *source, void *dest,uint64_t size);
 
 #endif //COURSEPROJ_STRING_H

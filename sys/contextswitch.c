@@ -194,7 +194,6 @@ struct PCB *create_thread(uint64_t faddr)
     thread->kstack[KSTACKLEN - 2] = faddr;
     thread->rsp=(uint64_t)&(thread->kstack[KSTACKLEN - 9]);
     thread->page_table =  (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
-    kprintf("value of kstack %p",thread->rsp);
     struct PCB *temp = threadlist;
     while(temp->next != NULL)
         temp = temp->next;

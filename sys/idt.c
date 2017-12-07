@@ -4,6 +4,7 @@
 #include <sys/io.h>
 #include <sys/syscall.h>
 #include <sys/contextswitch.h>
+#include <sys/allocator.h>
 
 #define MAX_IDT 255
 
@@ -40,9 +41,9 @@ static int scount = 0;   // count in seconds
 static int mcount = 0;   // count in minutes
 static int hcount = 0;   // count in hours
 static long mscount = 0; // count in timer frequency
-
+static long tcount=0;
 /*
- * Function:  handletime 
+ * Function:  handletime
  * --------------------
  * Calculates the time in hh:mm:ss format
  */
@@ -113,13 +114,13 @@ void handletime() {
 }
 
 /*
- * Function:  interrupt0 
+ * Function:  interrupt0
  * --------------------
  * Interrupt handler for the timer interrupt
  * Computes the boot time in seconds, minutes and hours
  */
 void interrupt0() {
-
+    tcount++;
     mscount++;
     // save the registers
     __asm__("\tpush %rax\n");
@@ -144,8 +145,13 @@ void interrupt0() {
     __asm__( "\tiretq\n");
 };
 
+long gettcount()
+{
+    return tcount;
+}
+
 /*
- * Function:  interrupt1 
+ * Function:  interrupt1
  * --------------------
  * Interrupt handler for the keyboard interrupt
  * Keeps track of the key which was pressed and writes to the screen.
@@ -198,7 +204,7 @@ void interrupt1() {
                 controlflag = controlflag | 0x04;
         }
         else {
-            
+
             if (controlflag & 0x04) //ctrl
             {
                 *temp2 = '^';
@@ -232,7 +238,7 @@ void interrupt1() {
  * --------------------
  * Interrupt handler for all the exceptions
  * Any exceptions which arise are simply acknowledged
- * This function has to be changed in the course project to 
+ * This function has to be changed in the course project to
  * handle these exceptions
  */
 void interrupt2() {
@@ -265,7 +271,13 @@ void interrupt_syscall() {
     __asm__("\tpush %rsi\n");
     __asm__("\tpush %rbp\n");
     __asm volatile("movq 88(%%rsp), %0" : "=g" (currentthread->ursp));
-    syscall_handler();
+    __asm__ volatile("movq 48(%%rsp), %0": "=r"(currentthread->rax));
+    __asm__ volatile("movq 24(%%rsp),%0": "=r"(currentthread->rdx));
+    __asm__ volatile("movq 8(%%rsp),%0": "=r"(currentthread->rsi));
+    __asm__ volatile("movq 16(%%rsp),%0": "=r"(currentthread->rdi));
+    void *sysaddress=(void *)syscalls[currentthread->rax];
+    syscall_handler(sysaddress);
+    //__asm__ volatile ( "callq %0;"::"r" (&syscall_handler):"rdx");
     // get the saved registers
     __asm__("\tpop %rbp\n");
     __asm__("\tpop %rsi\n");
@@ -299,6 +311,15 @@ void interrupt5() {
     __asm__( "\tiretq\n");
 };
 
+int is_cow_enabled(uint64_t pml4t_index) {
+    if ((currentthread != 0x0) &&
+        (currentthread->page_table != 0x0) &&
+        (((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE))->PML4Entry[pml4t_index].page_value & 0x0000000000000200) && //COW bit set
+        ((((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE))->PML4Entry[pml4t_index].page_value & 0x0000000000000001) == 0x1)) { //Present bit set
+        return 1;
+    }
+    return 0;
+}
 
 /*
  * Function:  interrupt4
@@ -319,17 +340,63 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "pushq %r9 ");
     __asm__ volatile ("movq %%cr2, %0;" :"=a"(arg1));
     //if (arg1 & 0x)
-    //uint64_t pml4t_index = (((uint64_t)arg1 >> 39) & 0x00000000000001ff);
-    if ((currentthread != 0x0) && (currentthread->page_table != 0x0) && ((((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE))->PML4Entry[(((uint64_t) arg1 >> 39) & 0x00000000000001ff)].page_value & 0x0000000000000002) == 0x0)) {
-        currentthread->page_table = (struct pml4t *) ((((uint64_t)copy_pml4(currentthread->page_table) & 0xfffffffffffff000) - KERNBASE));
-        //currentthread->page_table = (struct pml4t*)((uint64_t)currentthread->page_table -KERNBASE);
-        uint64_t pml4 = (uint64_t) currentthread->page_table & ~0xFFF;
-        __asm__ volatile("mov %0, %%cr3"::"r"(pml4));
+    uint64_t pml4t_index = (((uint64_t)arg1 >> 39) & 0x00000000000001ff);
+    //struct pml4t *current_page_table =  ((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE));
+    if (is_cow_enabled(pml4t_index)) {
 
+        //currentthread->page_table = (struct pml4t *) ((((uint64_t)copy_pml4(currentthread->page_table) & 0xfffffffffffff000) - KERNBASE));
+        //uint64_t pml4 = (uint64_t) currentthread->page_table & ~0xFFF;
+        //__asm__ volatile("mov %0, %%cr3"::"r"(pml4));
+        copy_page(((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE)), (uint64_t) arg1);
     }
     else {
-        map_address((uint64_t)arg1, (uint64_t)((uint64_t)arg1 - KERNBASE));
+        if (pml4t_index == 511) {
+            kprintf("\nIllegal access to kernel space. This process will now close. \n");
+            //map_address((uint64_t) arg1, (uint64_t) ((uint64_t) arg1 - KERNBASE));
+            on_completion_pointer();
+        }
+        else {
+            struct vm_area_struct * vmas = currentthread->mm->list_of_vmas, *vma_stack = NULL;
+            /*for (int i = 0; i < currentthread->mm->num_of_vmas; i++) {
+                if (vmas[i].vma_type == STACK) {
+                    kprintf("Stack Found");
+                }
+            }*/
+            while (vmas != NULL) {
+                if (vmas->vma_type == STACK) {
+                    //kprintf("Stack Found");
+                    vma_stack = vmas;
+                    break;
+                }
+                vmas = vmas->next;
+            }
+            if (vma_stack != NULL && (uint64_t)arg1 >= vma_stack->vma_start && (uint64_t)arg1 <= vma_stack->vma_end) {
+                //kprintf("Map stack");
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 8192, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+                //uint64_t *stack = bump_user(4096);
+            }
+            else if(vma_stack != NULL && (uint64_t)arg1 < vma_stack->vma_start) {
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 8192, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+                vma_stack->vma_start = vma_stack->vma_start - 4096;
+                //kprintf("Need to increase Stack");
+            }
+            else {
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+            }
+            /*if (vma_stack != NULL && (uint64_t)arg1 < vma_stack->vma_start) {
+                kprintf("Need to increase Stack");
+                //uint64_t *stack = bump_user(4096);
+            }*/
+            /*__asm__ volatile ( "popq %r9 ");
+            __asm__ volatile ( "popq %r9 ");
+            __asm__ volatile ( "popq %r9 ");*/
+            //__asm__ volatile ( "addq $24 ,%rsp ");
+
+        }
+
     }
+    //__asm__ volatile ( "popq %r9 ");
+    //__asm__ volatile ( "popq %r9 ");
     __asm__ volatile ( "popq %r9 ");
     __asm__ volatile ( "popq %r8 ");
     __asm__ volatile ( "popq %rsi ");
@@ -339,7 +406,7 @@ void interrupt4(struct pt_regs *regs) {
     __asm__ volatile ( "popq %rbx ");
     __asm__ volatile ( "popq %rax ");
     __asm__ volatile ( "popq %rdi ");
-    __asm__ volatile ( "addq $16 ,%rsp ");
+    __asm__ volatile ( "addq $32 ,%rsp ");
     __asm__( "\t movq %rax,%r9\n");
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20) );
     __asm__( "\t movq %r9,%rax\n");
@@ -431,6 +498,7 @@ void init_idt() {
     idtr_addr.size = sizeof(idt);
     __asm__ ( "lidt %0" : : "m"(idtr_addr) );
 }
+
 
 
 

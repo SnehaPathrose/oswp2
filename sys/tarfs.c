@@ -74,7 +74,7 @@ void loadelf(char *filename, struct PCB *p1)
             vma->vma_type=OTHER;
 
             //vma->vma_file=NULL;
-            if(phdr->p_flags == (PF_R + PF_X) )    // If  .text segment
+            if(phdr->p_flags == (PF_R + PF_X) )
             {
                 struct file *file = (struct file *)bump(sizeof(struct file));
                 vma->vma_file = file;
@@ -83,20 +83,28 @@ void loadelf(char *filename, struct PCB *p1)
                 vma->vma_file->vm_sz = phdr->p_filesz;
                 vma->vma_file->bss_size = 0;
             }
-            else if(phdr->p_flags == (PF_R + PF_W) ){      // If  .data .bss segment
+            else if(phdr->p_flags == (PF_R + PF_W) ){
                 vma->vma_file = (struct file *)bump(sizeof(struct file));
                 vma->vma_file->file_start = (uint64_t)elf;
                 vma->vma_file->vm_pgoff = phdr->p_offset;
                 vma->vma_file->vm_sz = phdr->p_filesz;
                 vma->vma_file->bss_size = phdr->p_memsz - phdr->p_filesz;
             }
-            for(addr=phdr->p_vaddr;addr<phdr->p_vaddr+phdr->p_memsz;addr+=4096)
+            uint64_t sizetocopy;
+            for(addr=phdr->p_vaddr,i=0;addr<phdr->p_vaddr+phdr->p_memsz;addr+=4096,i+=4096)
             {
                 phy=(uint64_t)bump_physical(4096);
                 map_user_address(addr,phy,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
+                if((phdr->p_memsz - i)>4096)
+                   sizetocopy = 4096;
+                else
+                    sizetocopy = phdr->p_memsz - i;
+                kmemcpychar((void *)(elf+phdr->p_offset+i),(void *)addr,sizetocopy);
 
             }
-            kmemcpy((uint64_t *)(elf+phdr->p_offset),(uint64_t *)phdr->p_vaddr,phdr->p_filesz);
+            flush_tlb();
+
+
             vma->next = NULL;
             if(tempvma == NULL)
             {
@@ -107,6 +115,7 @@ void loadelf(char *filename, struct PCB *p1)
             {
                 vma->prev = tempvma;
             }
+            p1->mm->num_of_vmas++;
             tempvma = vma;
             vma=vma->next;
         }
@@ -114,28 +123,35 @@ void loadelf(char *filename, struct PCB *p1)
 
     }
 
+    //create process heap
+    createheap(PAGE_SIZE,p1,0x07);
+
     //create process stack
     uint64_t *stack = bump_user(4096);
-    map_user_address((uint64_t)stack,(uint64_t)stack-USERBASE,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
-    memset((void *)stack,0,4096);
-    //kprintf("\nValue of stack: %x", (uint64_t)stack);
+    //kprintf("\n Value of bump: %x", stack);
+    stack = stack + 8192;
+
+
+    //map_user_address((uint64_t)stack,(uint64_t)stack-USERBASE,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
+    //memset((void *)stack,0,4096);
     vma = bump(sizeof(struct vm_area_struct));
     vma->vma_type = STACK;
     vma->vma_file = NULL;
     vma->vma_start = (uint64_t)stack;
     vma->vma_end = (uint64_t)stack + 4095;
+    //kprintf("\n Value of stack start: %x", vma->vma_start);
+    //kprintf("\n Value of stack end: %x", vma->vma_end);
     tempvma = p1->mm->list_of_vmas;
     while (tempvma->next != NULL)
         tempvma = tempvma->next;
     //tempvma = vma;
     vma->prev = tempvma;
     tempvma->next = vma;
+    p1->mm->num_of_vmas++;
     vma->next = NULL;
     //p1->rsp = (uint64_t)stack+4096;
     p1->ursp = (uint64_t)stack+4087;
     *((uint64_t *)p1->ursp)=(uint64_t)on_completion_pointer;
-
-    //create process heap
-    createheap(PAGE_SIZE,p1,0x07);
 }
+
 

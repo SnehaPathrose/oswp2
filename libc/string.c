@@ -95,6 +95,9 @@ char  **tokenize(char *string)
     char **tokens=(char **)malloc(100*sizeof(char *));
     int i = 0, j =0;
     tokens[j]=(char *)malloc(1000*sizeof(char));
+    for(int k = 0; k < 1000; k++) {
+        tokens[j][k] = '\0';
+    }
     while(*string != '\0')
     {
         if ((*string != ' ') && (*string!='\n') )
@@ -105,13 +108,29 @@ char  **tokenize(char *string)
         else
         {
             j++;
-            if(*(string+1)!='\0')
-                tokens[j]=(char *)malloc(1000*sizeof(char));
+            if(*(string+1)!='\0') {
+                tokens[j] = (char *) malloc(1000 * sizeof(char));
+                for(int k = 0; k < 1000; k++) {
+                    tokens[j][k] = '\0';
+                }
+            }
             i = 0;
         }
         string++;
     }
+    //tokens[j][i] = '\0';
     return tokens;
+}
+
+void memcpychar(void *source, void *dest,uint64_t size)
+{
+    unsigned char *us =source;
+    unsigned char *ud =dest;
+    for (int i = 0; i < size; i++) {
+        *ud = *us;
+        us++;
+        ud++;
+    }
 }
 
 //function to find no of tokens
@@ -162,3 +181,14 @@ char** tokenizepath(char* envValue) {
 
     //puts(envValue);
 }
+
+int atoi(char *s)
+{
+    int num=0;
+    for(int i=0;i<strlen(s);i++)
+    {
+        num =num*10+(s[i]-'0');
+    }
+    return num;
+}
+

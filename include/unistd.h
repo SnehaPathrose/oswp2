@@ -6,7 +6,7 @@
 int open(const char *pathname, int flags);
 int close(int fd);
 ssize_t read(int fd, void *buf, int count);
-ssize_t write(int fd, const void *buf, size_t count);
+int write(int fd, char *msg,int size);
 int unlink(const char *pathname);
 
 int chdir(const char *path);
