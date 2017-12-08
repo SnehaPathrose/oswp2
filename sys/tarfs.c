@@ -129,7 +129,7 @@ void loadelf(char *filename, struct PCB *p1)
     //create process stack
     uint64_t *stack = bump_user(4096);
     //kprintf("\n Value of bump: %x", stack);
-    stack = stack + 0x10000;
+    stack = stack + 0x1000000000;
 
 
     //map_user_address((uint64_t)stack,(uint64_t)stack-USERBASE,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);

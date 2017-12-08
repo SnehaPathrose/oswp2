@@ -385,13 +385,13 @@ void interrupt4(struct pt_regs *regs) {
             }
 
             if (vma_stack != NULL && (uint64_t)arg1 >= vma_stack->vma_start && (uint64_t)arg1 <= vma_stack->vma_end) {
-                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x10000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x1000000000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
             }
             else if (vma_heap != NULL && (uint64_t)arg1 >= vma_heap->vma_start && (uint64_t)arg1 <= vma_heap->vma_end) {
                 map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
             }
             else if(vma_stack != NULL && (uint64_t)arg1 < vma_stack->vma_start) {
-                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x10000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x1000000000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
                 vma_stack->vma_start = vma_stack->vma_start - 4096;
             }
             else {
