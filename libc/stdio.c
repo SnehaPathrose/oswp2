@@ -13,8 +13,13 @@ char* fgets(int fileDescriptor, char* stringVal, int size) {
         bytes=read(fileDescriptor,buf, 1);
         if(bytes==EOF)
         {
-            *temp=-1;
-            *(temp+1)='\0';
+            if(stringVal[0]==0)
+            {
+                *temp = -1;
+                *(temp + 1) = '\0';
+            }
+            else
+                *(temp + 1) = '\0';
             return stringVal;
         }
         *temp = buf[0];
@@ -25,5 +30,6 @@ char* fgets(int fileDescriptor, char* stringVal, int size) {
     }
     return "";
 }
+
 
 

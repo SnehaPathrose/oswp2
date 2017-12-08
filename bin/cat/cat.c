@@ -13,22 +13,12 @@ int main(int argc,char* argv[])
     ssize_t s;
 
     //cwd=getcwd(buf,50);
-    char *line=(char *)malloc(500);
-
-    // puts(cwd);
-    //puts("in cat");
-    //puts(argv[0]);
-    //puts(argv[1]);
-    //puts(argv[2]);
-    //puts(cwd);
-    //filename=concat(cwd,argv[1]);
-    //puts(filename);
-    //puts(fileptr);
+    char *line=(char *)malloc(100);
     if(argv[1][0]!='/')
     {
-        char *buf=(char *)malloc(50);
-        cwd=getcwd(buf,50);
-        filename=concat(cwd,argv[1]);
+        char *buf=(char *)malloc(25);
+        cwd=getcwd(buf,25);
+        filename=strcat(cwd,argv[1]);
 
     }
     else
@@ -40,11 +30,12 @@ int main(int argc,char* argv[])
         puts("File Not Found\n");
         return 1;
     }
-    s=read(fileptr,line,500);
+    umemset(line, 0, 100);
+    s=read(fileptr,line,100);
     write(1,line,s);
     while(s != EOF) {
         umemset(line, 0, strlen(line));
-        s = read(fileptr, line, 500);
+        s = read(fileptr, line, 100);
         if (s == EOF)
             break;
         write(1,line,s);
@@ -52,3 +43,4 @@ int main(int argc,char* argv[])
     close(fileptr);
     return 0;
 }
+

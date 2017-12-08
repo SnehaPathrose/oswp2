@@ -13,7 +13,6 @@
 
 uint64_t getsize(const char *in)
 {
-
     uint64_t size = 0;
     unsigned int j;
     unsigned int count = 1;
@@ -34,9 +33,6 @@ uint64_t findfile(char *filename)
     tarfs = (struct posix_header_ustar *)address;
     while(tarfs->name[0]!='\0')
     { size=getsize(tarfs->size);
-        //kprintf("name: %s ",tarfs->name);
-        //kprintf("size: %d",size);
-        //kprintf("typeflag: %s\n",tarfs->typeflag);
         if(kstrcmp(tarfs->name,filename) == 0)
             return address;
         address += ((size/512)+1) * 512;
@@ -91,12 +87,16 @@ void loadelf(char *filename, struct PCB *p1)
                 vma->vma_file->bss_size = phdr->p_memsz - phdr->p_filesz;
             }
             uint64_t sizetocopy;
+            if (phdr->p_memsz > 4096) {
+                kprintf("\nELF file too long\n");
+                while (1);
+            }
             for(addr=phdr->p_vaddr,i=0;addr<phdr->p_vaddr+phdr->p_memsz;addr+=4096,i+=4096)
             {
                 phy=(uint64_t)bump_physical(4096);
                 map_user_address(addr,phy,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
                 if((phdr->p_memsz - i)>4096)
-                   sizetocopy = 4096;
+                    sizetocopy = 4096;
                 else
                     sizetocopy = phdr->p_memsz - i;
                 kmemcpychar((void *)(elf+phdr->p_offset+i),(void *)addr,sizetocopy);
@@ -129,7 +129,7 @@ void loadelf(char *filename, struct PCB *p1)
     //create process stack
     uint64_t *stack = bump_user(4096);
     //kprintf("\n Value of bump: %x", stack);
-    stack = stack + 8192;
+    stack = stack + 0x10000;
 
 
     //map_user_address((uint64_t)stack,(uint64_t)stack-USERBASE,4096,(struct pml4t *)((uint64_t)p1->page_table+KERNBASE),0x07);
@@ -153,5 +153,6 @@ void loadelf(char *filename, struct PCB *p1)
     p1->ursp = (uint64_t)stack+4087;
     *((uint64_t *)p1->ursp)=(uint64_t)on_completion_pointer;
 }
+
 
 

@@ -56,7 +56,7 @@ void map_address_initial(uint64_t address, uint64_t map_phy_address) {
         page_table = (struct pt*)(KERNBASE + (page_directory->PDEntry[pdt_index].page_value & 0xfffffffffffff000));
     }
     uint64_t abc = get_unallocated();
-    int num_of_entries = ((uint64_t)abc - (map_phy_address))/4096;
+    int num_of_entries = (int) (((uint64_t)abc - (map_phy_address)) / 4096);
     if (((uint64_t)abc - (map_phy_address)) % 512 > 0) {
         num_of_entries++;
     }
@@ -66,7 +66,7 @@ void map_address_initial(uint64_t address, uint64_t map_phy_address) {
         num_of_structs++;
     }
     //kprintf("Num of structs to be allocated %d", num_of_structs);
-    int size = (uint64_t)get_unallocated() - (map_phy_address) + (num_of_structs - 1) * 4096;
+    int size = (int) ((uint64_t)get_unallocated() - (map_phy_address) + (num_of_structs - 1) * 4096);
     //kprintf("\nsize %d %d", size, size/4096);
     map_phy_address = map_phy_address & 0xfffff000; // discard bits we don't want
 
@@ -156,7 +156,7 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
         page_table = (struct pt*)(KERNBASE + (page_directory->PDEntry[pdt_index].page_value & 0xfffffffffffff000));
     }
     uint64_t abc = get_unallocated();
-    int num_of_entries = ((uint64_t)abc - (map_phy_address))/4096;
+    int num_of_entries = (int) (((uint64_t)abc - (map_phy_address)) / 4096);
     if (((uint64_t)abc - (map_phy_address)) % 512 > 0) {
         num_of_entries++;
     }
@@ -166,7 +166,7 @@ void map_address(uint64_t address, uint64_t map_phy_address) {
         num_of_structs++;
     }
     //kprintf("Num of structs to be allocated %d", num_of_structs);
-    int size = (uint64_t)get_unallocated() - (map_phy_address) + (num_of_structs - 1) * 4096;
+    int size = (int) ((uint64_t)get_unallocated() - (map_phy_address) + (num_of_structs - 1) * 4096);
     //kprintf("\nsize %d %d", size, size/4096);
     map_phy_address = map_phy_address & 0xfffff000; // discard bits we don't want
 
@@ -322,18 +322,6 @@ void duplicate_pt(struct pt *source_pt, struct pt *new_pt) {
     }
 }
 
-void duplicate_kernel_pt(struct pt *source_pt, struct pt *new_pt) {
-    for (int i = 0; i < 512; i++) {
-        if(source_pt->PageEntry[i].page_value > 0) {
-            uint64_t flags = source_pt->PageEntry[i].page_value & 0xfff;
-            source_pt->PageEntry[i].page_value = ((source_pt->PageEntry[i].page_value) & 0xfffffffffffffffd);
-            source_pt->PageEntry[i].page_value = ((source_pt->PageEntry[i].page_value) | 0x200);
-            new_pt->PageEntry[i].page_value = ((source_pt->PageEntry[i].page_value) & 0xfffffffffffff000);
-            new_pt->PageEntry[i].page_value = ((source_pt->PageEntry[i].page_value) | flags);
-        }
-    }
-}
-
 void duplicate_pdt(struct pdt *source_pdt, struct pdt *new_pdt) {
     for (int i = 0; i < 512; i++) {
         //if(source_pdt->PDEntry[i].page_value & 0x0000000000000004) {
@@ -348,26 +336,6 @@ void duplicate_pdt(struct pdt *source_pdt, struct pdt *new_pdt) {
             new_pdt->PDEntry[i].page_value = ((uint64_t) new_pt - KERNBASE) & 0xfffffffffffff000;
             new_pdt->PDEntry[i].page_value = new_pdt->PDEntry[i].page_value | 0x205;
             duplicate_pt(pt, new_pt);
-        }
-        //}
-    }
-}
-
-void duplicate_kernel_pdt(struct pdt *source_pdt, struct pdt *new_pdt) {
-    for (int i = 0; i < 512; i++) {
-        //if(source_pdt->PDEntry[i].page_value & 0x0000000000000004) {
-        //source_pdt->PDEntry[i].page_value = ((source_pdt->PDEntry[i].page_value) & 0xfffffffffffffffd);
-        //source_pdt->PDEntry[i].page_value = ((source_pdt->PDEntry[i].page_value) | 0x200);
-        if (source_pdt->PDEntry[i].page_value > 0) {
-            uint64_t flags = source_pdt->PDEntry[i].page_value & 0xfff;
-            struct pt *pt = (struct pt *) (KERNBASE + (source_pdt->PDEntry[i].page_value & 0xfffffffffffff000));
-            struct pt *new_pt = (struct pt *) bump(sizeof(struct pt));
-            for (int i = 0; i < 512; i++) {
-                new_pt->PageEntry[i].page_value = 0x0;
-            }
-            new_pdt->PDEntry[i].page_value = ((uint64_t) new_pt - KERNBASE) & 0xfffffffffffff000;
-            new_pdt->PDEntry[i].page_value = new_pdt->PDEntry[i].page_value | flags;
-            duplicate_kernel_pt(pt, new_pt);
         }
         //}
     }
@@ -390,24 +358,6 @@ void duplicate_pdpt(struct pdpt *source_pdpt, struct pdpt *new_pdpt) {
     }
 }
 
-void duplicate_kernel_pdpt(struct pdpt *source_pdpt, struct pdpt *new_pdpt) {
-    for (int i = 0; i < 512; i++) {
-        if(source_pdpt->PDPEntry[i].page_value > 0) {
-            //source_pdpt->PDPEntry[i].page_value = ((source_pdpt->PDPEntry[i].page_value) & 0xfffffffffffffffd);
-            //source_pdpt->PDPEntry[i].page_value = ((source_pdpt->PDPEntry[i].page_value) | 0x200);
-            uint64_t flags = source_pdpt->PDPEntry[i].page_value & 0xfff;
-            struct pdt *pdt = (struct pdt *)(KERNBASE + (source_pdpt->PDPEntry[i].page_value & 0xfffffffffffff000));
-            struct pdt *new_pdt = (struct pdt *)bump(sizeof(struct pdt));
-            for (int i = 0; i < 512; i++) {
-                new_pdt->PDEntry[i].page_value = 0x0;
-            }
-            new_pdpt->PDPEntry[i].page_value = ((uint64_t) new_pdt - KERNBASE) & 0xfffffffffffff000;
-            new_pdpt->PDPEntry[i].page_value = new_pdpt->PDPEntry[i].page_value | flags;
-            duplicate_kernel_pdt(pdt, new_pdt);
-        }
-    }
-}
-
 struct pml4t* duplicate_page_table(struct pml4t *source_table) {
 
     struct pml4t *user_table = (struct pml4t*)bump(sizeof(struct pml4t));
@@ -420,17 +370,7 @@ struct pml4t* duplicate_page_table(struct pml4t *source_table) {
                 continue;
             }
             if (i == 511) {
-                //struct pdpt *pdpt = (struct pdpt *) (KERNBASE +
-                //  (source_table->PML4Entry[i].page_value & 0xfffffffffffff000));
-                // Duplicate kernel pdpt
-                /*struct pdpt *new_pdpt = (struct pdpt *) bump(sizeof(struct pdpt));
-                for (int i = 0; i < 512; i++) {
-                    new_pdpt->PDPEntry[i].page_value = 0x0;
-                }*/
-                //uint64_t flags = source_table->PML4Entry[i].page_value & 0xfff;
                 user_table->PML4Entry[i].page_value = source_table->PML4Entry[i].page_value;
-                //user_table->PML4Entry[i].page_value = user_table->PML4Entry[i].page_value | flags;
-                //duplicate_kernel_pdpt(pdpt, new_pdpt);
             }
             else {
                 source_table->PML4Entry[i].page_value = ((source_table->PML4Entry[i].page_value) & 0xfffffffffffffffd);
@@ -464,58 +404,6 @@ struct pml4t* map_user_pml4() {
     user_table->PML4Entry[510].page_value = (((uint64_t)user_table->PML4Entry->page_value & 0xfffffffffffff000)  - KERNBASE)|7;
 
     return user_table;
-}
-
-struct pt* copy_pt(struct pt* user_pt) {
-    struct pt *new_pt = (struct pt*)bump(sizeof(struct pt));
-    for (int i = 0; i < 512; i++) {
-        new_pt->PageEntry[i].page_value = 0x0;
-    }
-    for(int i = 0; i < 512; i++) {
-        if((user_pt->PageEntry[i].page_value != 0x0) && (user_pt->PageEntry[i].page_value & 0x0000000000000004)) {
-            new_pt->PageEntry[i].page_value = user_pt->PageEntry[i].page_value | 7;
-        }
-        else if(user_pt->PageEntry[i].page_value != 0x0){
-            new_pt->PageEntry[i].page_value = user_pt->PageEntry[i].page_value;
-        }
-    }
-    return new_pt;
-}
-
-struct pdt* copy_pdt(struct pdt* user_pdt) {
-    struct pdt *new_pdt = (struct pdt*)bump(sizeof(struct pdt));
-    for (int i = 0; i < 512; i++) {
-        new_pdt->PDEntry[i].page_value = 0x0;
-    }
-    for(int i = 0; i < 512; i++) {
-        if((user_pdt->PDEntry[i].page_value != 0x0) && (user_pdt->PDEntry[i].page_value & 0x0000000000000004)) {
-            new_pdt->PDEntry[i].page_value = user_pdt->PDEntry[i].page_value | 7;
-            struct pt *pt = (struct pt *)(KERNBASE + (user_pdt->PDEntry[i].page_value & 0xfffffffffffff000));
-            new_pdt->PDEntry[i].page_value = (((uint64_t)copy_pt(pt) & 0xfffffffffffff000) - KERNBASE) | 7;
-        }
-        else if(user_pdt->PDEntry[i].page_value != 0x0){
-            new_pdt->PDEntry[i].page_value = user_pdt->PDEntry[i].page_value;
-        }
-    }
-    return new_pdt;
-}
-
-struct pdpt* copy_pdpt(struct pdpt* user_pdpt) {
-    struct pdpt *new_pdpt = (struct pdpt*)bump(sizeof(struct pdpt));
-    for (int i = 0; i < 512; i++) {
-        new_pdpt->PDPEntry[i].page_value = 0x0;
-    }
-    for(int i = 0; i < 512; i++) {
-        if((user_pdpt->PDPEntry[i].page_value != 0x0) && (user_pdpt->PDPEntry[i].page_value & 0x0000000000000004)) {
-            new_pdpt->PDPEntry[i].page_value = user_pdpt->PDPEntry[i].page_value | 7;
-            struct pdt *pdt = (struct pdt *)(KERNBASE + (user_pdpt->PDPEntry[i].page_value & 0xfffffffffffff000));
-            new_pdpt->PDPEntry[i].page_value = (((uint64_t)copy_pdt(pdt) & 0xfffffffffffff000) - KERNBASE) | 7;
-        }
-        else if (user_pdpt->PDPEntry[i].page_value != 0x0){
-            new_pdpt->PDPEntry[i].page_value = user_pdpt->PDPEntry[i].page_value;
-        }
-    }
-    return new_pdpt;
 }
 
 void copy_page(struct pml4t *user_table, uint64_t page) {
@@ -577,34 +465,6 @@ void copy_page(struct pml4t *user_table, uint64_t page) {
         flush_tlb();
     }
     //flush_tlb();
-}
-
-struct pml4t* copy_pml4(struct pml4t *user_table) {
-    struct pml4t *old_table = (struct pml4t*)((uint64_t)user_table + KERNBASE);
-    struct pml4t *user_table_new=bump(sizeof(struct pml4t));
-    //map_address((uint64_t) user_table_new, (uint64_t) ((uint64_t) user_table_new - KERNBASE));
-    uint64_t flags = 0;
-    old_table = (struct pml4t*)((uint64_t)old_table & 0xfffffffffffff000);
-    for (int i = 0; i < 512; i++) {
-        user_table_new->PML4Entry[i].page_value = 0x0;
-    }
-    for (int i = 0; i < 512; i++) {
-        if (i == 510) {
-            continue;
-        }
-        flags = old_table->PML4Entry[i].page_value & 0xfff;
-        flags = flags & 0xdff;
-        if((flags != 0x0) && ((flags & 0x0000000000000002) == 0x0) && (flags & 0x0000000000000005)) {
-            user_table_new->PML4Entry[i].page_value = old_table->PML4Entry[i].page_value | 7;
-            struct pdpt *pdpt = (struct pdpt *)(KERNBASE + (old_table->PML4Entry[i].page_value & 0xfffffffffffff000));
-            user_table_new->PML4Entry[i].page_value = (((uint64_t)copy_pdpt(pdpt) & 0xfffffffffffff000) - KERNBASE) | 7;
-        }
-        else if((flags != 0x0) && (flags & 0x0000000000000003)) {
-            user_table_new->PML4Entry[i].page_value = (old_table->PML4Entry[i].page_value & 0xfffffffffffff000) | flags;
-        }
-    }
-    user_table_new->PML4Entry[510].page_value = (((uint64_t)user_table_new & 0xfffffffffffff000)  - KERNBASE)|3;
-    return user_table_new;
 }
 
 

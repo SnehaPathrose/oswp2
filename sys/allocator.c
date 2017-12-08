@@ -5,6 +5,7 @@
 #include <sys/allocator.h>
 #include <sys/virtualmem.h>
 #include <sys/io.h>
+#include <sys/klibc.h>
 
 void *unallocated;
 void *end;
@@ -71,6 +72,7 @@ void *bump(uint64_t size)
         };
     }
     map_address((uint64_t) (ret + KERNBASE), (uint64_t) ((uint64_t) ret ));
+    memset((void *) (ret + KERNBASE), 0, size);
     return (void *)(ret + KERNBASE);
 }
 
@@ -148,6 +150,7 @@ void *bump_physical(uint64_t size)
 
 void kfree(void *freed_pointer) {
     struct free_list* temp_free = head_free;
+    char* free_pointer = freed_pointer;
     while (temp_free->next != NULL) {
         //temp_free->next = (struct free_list*)((uint64_t)temp_free->next + KERNBASE);
         temp_free = temp_free->next;
@@ -162,6 +165,9 @@ void kfree(void *freed_pointer) {
     }
     else {
         phy_address = (uint64_t)freed_pointer;
+    }
+    for (int i = 0; i < 4096; i++) {
+        *(free_pointer + i) = 0;
     }
     new_page->current = phy_address;
     new_page->next = NULL;

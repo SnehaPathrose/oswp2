@@ -8,27 +8,22 @@
 #include <string.h>
 
 int main(int argc, char* argv[]) {
-    DIR *directory;
-    int c;
-    /*for(c=0;c<argc;c++)
-        write(1, argv[c], 10);
-    write(1,"env",10);*/
-    char *buf=(char *)malloc(20);
-    /*for (int i = 0; i < 50; i++) {
-        buf[i] = '\0';
-    }*/
-    struct dirent *files;
+    //DIR *directory;
+    //int c;
+    char *buf=(char *)malloc(25);
+    //struct dirent *files/*= (struct dirent *)malloc(5*sizeof(struct dirent))*/;
     char *cwd;
     cwd=getcwd(buf,25);
+    puts(cwd);
     //write(1,cwd,100);
-    directory = opendir(cwd);
+    /*directory = opendir(cwd);
     if(directory>0)
     {
         while(1) {
             //umemset(files, 0, 5*sizeof(struct dirent));
             files = readdir(directory);
             if (files != NULL) {
-                write(1, files->d_name, 20);
+                write(1, files->d_name, 50);
                 write(1, "  ", 10);
             }
             else
@@ -38,9 +33,8 @@ int main(int argc, char* argv[]) {
         c=closedir(directory);
         if(c==-1)
             write(1,"Close failed\n",50);
-    }
+    }*/
     return 0;
 }
-
 
 

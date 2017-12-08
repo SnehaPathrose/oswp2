@@ -26,6 +26,7 @@ int sys_kill(uint32_t pid, int sig);
 int sys_open(const char *pathname, int flags);
 int sys_close(int fd);
 unsigned int sys_sleep(unsigned int seconds);
+int sys_chdir(const char *path);
 void initialise_syscalls();
 
 const void  *syscalls[MAXSYSCALLS] ;

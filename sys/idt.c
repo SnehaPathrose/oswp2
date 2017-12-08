@@ -277,6 +277,7 @@ void interrupt_syscall() {
     __asm__ volatile("movq 16(%%rsp),%0": "=r"(currentthread->rdi));
     void *sysaddress=(void *)syscalls[currentthread->rax];
     syscall_handler(sysaddress);
+    //schedule();
     //__asm__ volatile ( "callq %0;"::"r" (&syscall_handler):"rdx");
     // get the saved registers
     __asm__("\tpop %rbp\n");
@@ -351,12 +352,12 @@ void interrupt4(struct pt_regs *regs) {
     }
     else {
         if (pml4t_index == 511) {
-            kprintf("\nIllegal access to kernel space. This process will now close. \n");
+            kprintf("\nIllegal access to kernel space. This process will now close. [%x]\n", arg1);
             //map_address((uint64_t) arg1, (uint64_t) ((uint64_t) arg1 - KERNBASE));
             on_completion_pointer();
         }
         else {
-            struct vm_area_struct * vmas = currentthread->mm->list_of_vmas, *vma_stack = NULL;
+            struct vm_area_struct * vmas = currentthread->mm->list_of_vmas, *vma_stack = NULL, *vma_heap = NULL;
             /*for (int i = 0; i < currentthread->mm->num_of_vmas; i++) {
                 if (vmas[i].vma_type == STACK) {
                     kprintf("Stack Found");
@@ -370,15 +371,28 @@ void interrupt4(struct pt_regs *regs) {
                 }
                 vmas = vmas->next;
             }
+            //int found = 0;
+            vmas = currentthread->mm->list_of_vmas;
+            while (vmas != NULL) {
+                if (vmas->vma_type == HEAP) {
+                    if ((uint64_t)arg1 >= vmas->vma_start && (uint64_t)arg1 <= vmas->vma_end) {
+                        vma_heap = vmas;
+                        //found = 1;
+                        break;
+                    }
+                }
+                vmas = vmas->next;
+            }
+
             if (vma_stack != NULL && (uint64_t)arg1 >= vma_stack->vma_start && (uint64_t)arg1 <= vma_stack->vma_end) {
-                //kprintf("Map stack");
-                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 8192, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
-                //uint64_t *stack = bump_user(4096);
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x10000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+            }
+            else if (vma_heap != NULL && (uint64_t)arg1 >= vma_heap->vma_start && (uint64_t)arg1 <= vma_heap->vma_end) {
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
             }
             else if(vma_stack != NULL && (uint64_t)arg1 < vma_stack->vma_start) {
-                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 8192, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
+                map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE - 0x10000, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
                 vma_stack->vma_start = vma_stack->vma_start - 4096;
-                //kprintf("Need to increase Stack");
             }
             else {
                 map_user_address((uint64_t) arg1, (uint64_t) arg1 - USERBASE, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
@@ -498,6 +512,7 @@ void init_idt() {
     idtr_addr.size = sizeof(idt);
     __asm__ ( "lidt %0" : : "m"(idtr_addr) );
 }
+
 
 
 

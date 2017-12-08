@@ -6,6 +6,7 @@
 #include <sys/io.h>
 #include <sys/tarfs.h>
 #include <sys/klibc.h>
+#include <sys/syscall.h>
 
 struct filesys_tnode* find_file_from_root(struct filesys_tnode *current_node, char file_name[10][256], int depth, int total_depth) {
     struct filesys_node *current_inode = current_node->link_to_inode;
@@ -175,7 +176,8 @@ DIR *do_opendir(char *dirname)
     fd=do_dopen(dirname);
     struct filesys_node *inode = file_descriptors[fd]->link_to_inode;
     int totalfiles= inode->num_sub_files+inode->num_sub_directory;
-    dirptr=bump_user(totalfiles* sizeof(DIR));
+    dirptr= (DIR *) sys_malloc(totalfiles * sizeof(DIR));
+    map_user_address((uint64_t) dirptr, (uint64_t) dirptr - USERBASE, 4096, (struct pml4t *)((uint64_t)currentthread->page_table+KERNBASE), 7);
     memset(dirptr, 0, totalfiles* sizeof(DIR));
     for(i=0;i<inode->num_sub_directory;i++)
     {
@@ -206,8 +208,11 @@ struct dirent *do_readdir(DIR *dir)
 {
     struct dirent *file=NULL;
     int i;
+    struct filesys_node *inode = file_descriptors[dir->fd]->link_to_inode;
+    int totalfiles= inode->num_sub_files+inode->num_sub_directory;
     for(i=0;dir[i].d_no==1;i++);
-    if(kstrlength(dir[i].d_name)>0)
+
+    if((i < totalfiles) && (kstrlength(dir[i].d_name)>0))
     {
         file=dir+i;
         dir[i].d_no=1;
@@ -464,6 +469,7 @@ void initialise_file_system() {
      kprintf(dirent->d_name);
      do_closedir(dir);*/
 }
+
 
 
 

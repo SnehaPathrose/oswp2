@@ -49,7 +49,7 @@ void user_process()
         process->page_table = (struct pml4t *) ((uint64_t) process->page_table - KERNBASE);
         uint64_t pml4 = (uint64_t) process->page_table & ~0xFFF;
         __asm__ volatile("mov %0, %%cr3"::"r"(pml4));
-        loadelf("bin/sbush", process);
+        loadelf("bin/init", process);
         processcount++;
         process->pid=processcount;
         process->ppid=0;
@@ -80,15 +80,13 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
     while (temp_area_struct != NULL) {
         if(temp_area_struct->vma_type == HEAP) {
             uint64_t heapsize = temp_area_struct->vma_end - temp_area_struct->vma_start;
-            //vma=createheap(heapsize,new_process,0x05);
-            //uint64_t *heap = bump_user(size);
-            //map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
-            //memset((void *)heap,0,size);
             vma = bump(sizeof(struct vm_area_struct));
             vma->vma_type = HEAP;
             vma->vma_file = NULL;
             vma->vma_start = temp_area_struct->vma_start;
             vma->vma_end = temp_area_struct->vma_end;
+            //kprintf("\n Value of child heap start: %x", vma->vma_start);
+            //kprintf("\n Value of child heap end: %x", vma->vma_end);
             tempvma = new_process->mm->list_of_vmas;
             while (tempvma->next != NULL)
                 tempvma = tempvma->next;
@@ -103,17 +101,13 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
             kmemcpy((uint64_t *)temp_area_struct->vma_start,(uint64_t *)vma->vma_start,heapsize);
         }
         else if(temp_area_struct->vma_type == STACK) {
-            //uint64_t addr,offset=0;
-            //__asm__ volatile("\t movq 216(%%rsp),%0\n" :: "r"(tss->rsp) );
             vma = bump(sizeof(struct vm_area_struct));
-            //uint64_t *stack = bump_user(4096);
-            //stack = stack + 8192;
-            //map_user_address((uint64_t)stack,(uint64_t)stack, 4096, (struct pml4t *)((uint64_t)new_process->page_table + KERNBASE),0x05);
-            //kmemcpy((uint64_t *)temp_area_struct->vma_start,stack,4096);
             vma->vma_file = NULL;
             vma->vma_type = STACK;
             vma->vma_start = (uint64_t)temp_area_struct->vma_start;
             vma->vma_end = temp_area_struct->vma_end;
+            //kprintf("\n Value of child stack start: %x", vma->vma_start);
+            //kprintf("\n Value of child stack end: %x", vma->vma_end);
             //kprintf("\n Value of stack start: %x", vma->vma_start);
             //kprintf("\n Value of stack end: %x", vma->vma_end);
             tempvma = new_process->mm->list_of_vmas;
@@ -123,14 +117,6 @@ struct PCB* copy_process(struct PCB* current_process, struct PCB* new_process) {
             vma->prev = tempvma;
             tempvma->next = vma;
             vma->next = NULL;
-            /*for(addr=temp_area_struct->vma_end;addr>=temp_area_struct->vma_start;addr--)
-            {
-                if(addr==currentthread->ursp)
-                {
-                    offset=temp_area_struct->vma_end-addr;
-                    break;
-                }
-            }*/
             new_process->ursp=currentthread->ursp;
         }
         else {
@@ -174,8 +160,6 @@ struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t fl
 {
     struct vm_area_struct *vma,*tempvma;
     uint64_t *heap = bump_user(size);
-    //map_user_address((uint64_t)heap,(uint64_t)heap-USERBASE,size,(struct pml4t *)((uint64_t)process->page_table+KERNBASE),flags);
-    //memset((void *)heap,0,size);
     //kprintf("\nValue of heap: %x", (uint64_t)heap);
     vma = bump(sizeof(struct vm_area_struct));
     //map_address((uint64_t) vma, (uint64_t) ((uint64_t) vma - KERNBASE));
@@ -183,6 +167,8 @@ struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t fl
     vma->vma_file = NULL;
     vma->vma_start = (uint64_t)heap;
     vma->vma_end = (uint64_t)heap + size-1;
+    //kprintf("\nValue of heap start: %x", vma->vma_start);
+    //kprintf("\nValue of heap end: %x", vma->vma_end);
     tempvma = process->mm->list_of_vmas;
     while (tempvma->next != NULL)
         tempvma = tempvma->next;
@@ -196,23 +182,26 @@ struct vm_area_struct *createheap(uint64_t size, struct PCB *process,uint64_t fl
 }
 void clear_vmas()
 {
-
-    struct vm_area_struct *tempvma/*,*freevma*/;
+    struct vm_area_struct *tempvma/*, *current = NULL*//*,*freevma*/;
     tempvma=currentthread->mm->list_of_vmas;
     while(tempvma!=NULL)
     {
         if(tempvma->vma_type==OTHER) {
             //free the tempvma file
+            //kfree(tempvma->vma_file);
             tempvma->vma_file = NULL;
         }
         //freevma=tempvma;
+        //current = tempvma;
         tempvma=tempvma->next;
+        //kfree(current);
         //free the freevma
         //freevma=NULL;
     }
     currentthread->mm->list_of_vmas=NULL;
     //free mm
     currentthread->mm=NULL;
+    //kfree(currentthread->mm);
 }
 
 void clear_uptentries()
@@ -220,7 +209,7 @@ void clear_uptentries()
     struct pml4t *pagetable=(struct pml4t *) ((uint64_t)(currentthread->page_table)+KERNBASE);
     for (int i = 0; i < 512; i++) {
         if(pagetable->PML4Entry[i].page_value & 0x0000000000000004) {
-            if (i == 510) {
+            if (i == 510 || i == 511) {
                 continue;
             }
             pagetable->PML4Entry[i].page_value = 0x0;
@@ -264,7 +253,7 @@ int do_execvpe(const char *file, char *const argv[])
     kstrcopy(args[argc],"\0");
     clear_vmas();
     clear_uptentries();
-    loadelf(filename,currentthread);
+    loadelf(filename, currentthread);
     stack = (char *) currentthread->ursp;
 
 

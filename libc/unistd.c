@@ -61,3 +61,9 @@ unsigned int sleep(unsigned int seconds)
     return ret;
 }
 
+int chdir(const char *path) {
+    unsigned int ret;
+    __asm__ volatile("movq $17,%rax");
+    __asm__ volatile("int $0x80":"=a"(ret));
+    return ret;
+}

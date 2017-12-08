@@ -15,7 +15,7 @@ char *strncpy(char *String1, char *String2, int n);
 void umemset(void* s, int num, int size);
 char  **tokenize(char *string);
 int tokencount(char **String);
-char *concat(char *string1,char *string2);
+char *strcat(char *string1,char *string2);
 int contain(char *String,char c);
 char** tokenizepath(char* envValue);
 void trim(char *string1);

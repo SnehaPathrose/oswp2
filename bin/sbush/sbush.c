@@ -18,11 +18,18 @@ void bg_fg_process(char **command)
     pid = fork();
     if(pid == 0)
     {
-       /* if(strcmp("&", command[commandc-1]) == 0)
-            command[commandc-1]=NULL;*/
-        if((strcmp(command[0],"ls")==0) || (strcmp(command[0],"cat")==0) || (strcmp(command[0],"kill")==0) || (strcmp(command[0],"ps")==0) || (strcmp(command[0],"echo")==0) || (strcmp(command[0],"sleep")==0))
+        /* if(strcmp("&", command[commandc-1]) == 0)
+             command[commandc-1]=NULL;*/
+        if((strcmp(command[0],"ls")==0) ||
+           (strcmp(command[0],"cat")==0) ||
+           (strcmp(command[0],"kill")==0) ||
+           (strcmp(command[0],"ps")==0) ||
+           (strcmp(command[0],"echo")==0) ||
+           (strcmp(command[0],"sleep")==0) ||
+           (strcmp(command[0],"pwd")==0) ||
+           (strcmp(command[0],"cd")==0))
         {
-            filename = concat("bin/",command[0]);
+            filename = strcat("bin/",command[0]);
 
             /*if(access(filename, F_OK) < 0)
             {
@@ -77,18 +84,18 @@ int execscripts(char **command)
 {
     int fileptr;
     char *filename;
-    pid_t pid;
+    // pid_t pid;
     char *line,**split;
-    int status;
+    // int status;
 
 
     //puts(command[0]);
     if(command[0][0]=='.')
     {
         char *cwd;
-        char *buf=(char *)malloc(50);
-        cwd=getcwd(buf,50);
-        filename=concat(cwd,command[0]+2);
+        char *buf=(char *)malloc(25 * sizeof(char));
+        cwd=getcwd(buf,25);
+        filename=strcat(cwd,command[0]+2);
     }
     else
         filename=command[0];
@@ -113,8 +120,8 @@ int execscripts(char **command)
         /*}*/
 
     }
-    line = (char *)malloc(500*sizeof(char));
-    line = fgets(fileptr, line, 500);
+    line = (char *)malloc(50*sizeof(char));
+    line = fgets(fileptr, line, 50);
     /*int fileptr = 0;
     fileptr = strlen(line) + 1;*/
     if(strcmp(line,"#!/bin/sbush")!=0)
@@ -126,25 +133,26 @@ int execscripts(char **command)
     while(*line != EOF)
     {
         umemset(line, 0, strlen(line));
-        line=fgets(fileptr, line, 500);
+        line=fgets(fileptr, line, 50);
         // fileptr += strlength(line) + 1;
         if (line[0] == EOF)
             break;
         if(line[0]=='#')
             continue;
         split=tokenize(line);
-        pid=fork();
-        if(pid==0)
-        {
-            bg_fg_process(split);
-            exit(0);
+        //pid=fork();
+        // if(pid==0)
+        //{
+        bg_fg_process(split);
+        // write(1,"hey",5);
+        //  exit(0);
 
-        }
+        /*}
         else
         if(pid>0)
         {
             waitpid(pid,&status);
-        }
+        }*/
     }
     close(fileptr);
     return 0;
@@ -154,7 +162,7 @@ int execscripts(char **command)
 void mapFunction(char* inputString)
 {
     char **tokens;
-   // int status;
+    // int status;
     tokens = tokenize(inputString);
     if(tokens[0][0]=='/' || tokens[0][0]=='.')
         execscripts(tokens);

@@ -59,6 +59,15 @@ void kprintf(const char *fmt, ...)
     int noofarg=1;
     for (;*fmt!='\0';outputstring += 2,fmt++, length += 2)
     {
+        if ((uint64_t)outputstring >= ((KERNBASE + 0xb8000) + (160 * 21))) {
+            char *clearbuffer = (char*)(KERNBASE + 0xb8000);
+            for (int l = 0; l < 21; l++) {
+                for (int k = 0; k < 160; k++) {
+                    *(clearbuffer + (160 * l) + k) = *(clearbuffer + (160 * (l + 1) + k));
+                }
+            }
+            outputstring = (char *)((KERNBASE + 0xb8000) + (160 * 20));
+        }
         if(*fmt=='%')
         {
             noofarg++;

@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
         write(1, argv[c], 10);
     write(1,"env",10);*/
     //char *buf=(char *)malloc(50);
-    struct dirent *files= (struct dirent *)malloc(5*sizeof(struct dirent));
+    struct dirent *files/*= (struct dirent *)malloc(5*sizeof(struct dirent))*/;
     //char *cwd;
     //cwd=getcwd(buf,100);
     //write(1,cwd,100);

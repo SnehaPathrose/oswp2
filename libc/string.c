@@ -5,7 +5,7 @@
 #include <sys/defs.h>
 #include <stdlib.h>
 
-char *strcpy(char *String1, char *String2)
+/*char *strcpy(char *String1, char *String2)
 {
     int i;
     for (i=0;String2[i]!='\0';i++)
@@ -23,7 +23,7 @@ char *strncpy(char *String1, char *String2, int n)
     String1[i]='\0';
     return String1;
 
-}
+}*/
 
 int strlen(char *string)
 {
@@ -46,7 +46,7 @@ int strcmp(char *string1, char *string2)
     return 0;
 }
 
-void memcpy(uint64_t *source, uint64_t *dest,uint64_t size)
+/*void memcpy(uint64_t *source, uint64_t *dest,uint64_t size)
 {
     uint64_t i;
     size=size/8;
@@ -54,7 +54,7 @@ void memcpy(uint64_t *source, uint64_t *dest,uint64_t size)
         *(dest+i) = *(source+i);
 
     }
-}
+}*/
 
 void umemset(void* s, int num, int size)
 {
@@ -67,7 +67,7 @@ void umemset(void* s, int num, int size)
 
 //function to concatenate two strings
 
-char *concat(char *string1,char *string2) {
+char *strcat(char *string1,char *string2) {
     int string1len = 0, string2len = 0, string3len = 0, i, j;
     char *concatstr;
     while(string1[string1len] != '\0')
@@ -76,6 +76,7 @@ char *concat(char *string1,char *string2) {
         ++string2len;
     string3len = string1len + string2len+1;
     concatstr = (char *)malloc(string3len * (uint64_t)sizeof(char));
+    umemset(concatstr, '\0', string3len * sizeof(char));
     for(i=0; i<string1len; i++)
         concatstr[i] = string1[i];
     for(j=0; j<string2len; j++)
@@ -92,10 +93,10 @@ void trim(char *string1) {
 //function to split the input string to tokens
 char  **tokenize(char *string)
 {
-    char **tokens=(char **)malloc(100*sizeof(char *));
+    char **tokens=(char **)malloc(5*sizeof(char *));
     int i = 0, j =0;
-    tokens[j]=(char *)malloc(1000*sizeof(char));
-    for(int k = 0; k < 1000; k++) {
+    tokens[j]=(char *)malloc(25*sizeof(char));
+    for(int k = 0; k < 25; k++) {
         tokens[j][k] = '\0';
     }
     while(*string != '\0')
@@ -109,8 +110,8 @@ char  **tokenize(char *string)
         {
             j++;
             if(*(string+1)!='\0') {
-                tokens[j] = (char *) malloc(1000 * sizeof(char));
-                for(int k = 0; k < 1000; k++) {
+                tokens[j] = (char *) malloc(25 * sizeof(char));
+                for(int k = 0; k < 25; k++) {
                     tokens[j][k] = '\0';
                 }
             }
@@ -122,7 +123,7 @@ char  **tokenize(char *string)
     return tokens;
 }
 
-void memcpychar(void *source, void *dest,uint64_t size)
+/*void memcpychar(void *source, void *dest,uint64_t size)
 {
     unsigned char *us =source;
     unsigned char *ud =dest;
@@ -131,7 +132,7 @@ void memcpychar(void *source, void *dest,uint64_t size)
         us++;
         ud++;
     }
-}
+}*/
 
 //function to find no of tokens
 int tokencount(char **String)
@@ -141,7 +142,7 @@ int tokencount(char **String)
     return i;
 }
 
-//function to check if a character is present in a string
+/*//function to check if a character is present in a string
 int contain(char *String,char c)
 {
     int i,found=0;
@@ -180,7 +181,7 @@ char** tokenizepath(char* envValue) {
     return tokens;
 
     //puts(envValue);
-}
+}*/
 
 int atoi(char *s)
 {
