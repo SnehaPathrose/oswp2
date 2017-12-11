@@ -11,11 +11,12 @@
 uint64_t sys_getpid();
 int sys_write(int fd,char *msg,int size);
 uint64_t sys_malloc(uint64_t size);
+void sys_free(void *ptr);
 char *sys_getcwd(char *buf, size_t size);
 DIR *sys_opendir(char *dirname);
 struct dirent *sys_readdir(DIR *dirp);
 int sys_closedir(DIR *dirp);
-int sys_execvpe(const char *file, char *const argv[]);
+int sys_execvpe(const char *file, char *const argv[],char *const envp[]);
 void syscall_handler(void *sysaddress);
 int sys_fork();
 int64_t sys_read(int fd,char *msg,int size);
@@ -31,5 +32,6 @@ void initialise_syscalls();
 
 const void  *syscalls[MAXSYSCALLS] ;
 #endif //COURSEPROJ_SYSCALL_H
+
 
 

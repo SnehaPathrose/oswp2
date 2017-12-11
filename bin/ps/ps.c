@@ -5,42 +5,58 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
-int main(int argc, char* argv[]) {
+#include <string.h>
+
+int main(int argc, char* argv[],char *envp[]) {
     DIR *directory;
     int c;
-    /*for(c=0;c<argc;c++)
-        write(1, argv[c], 10);
-    write(1,"env",10);*/
-    //char *buf=(char *)malloc(50);
-    struct dirent *files/*= (struct dirent *)malloc(5*sizeof(struct dirent))*/;
-    //char *cwd;
-    //cwd=getcwd(buf,100);
-    //write(1,cwd,100);
+    struct dirent *files;
     directory=opendir("/proc/");
     if(directory>0)
     {
-        write(1, "PID  STATUS\n", 50);
+        write(1, "PID  PPID  STATUS     NAME\n", 27);
         while(1) {
             files = readdir(directory);
             if (files != NULL) {
-                write(1, files->d_name, 50);
-                //write(1, " RUNNING", 50);
-                if (files->state == 0)
-                    write(1, "    RUNNING", 50);
-                else if (files->state == 1)
-                    write(1, "    SLEEPING", 50);
-                else if (files->state == 2)
-                    write(1, "    ZOMBIE", 50);
-                /*switch (files->state) {
-                    case 0: write(1, " RUNNING", 50);
-                            break;
-                    case 1: write(1, " SLEEPING", 50);
-                            break;
-                    case 2: write(1, " ZOMBIE", 50);
-                            break;
-                }*/
+                char pid[5], ppid[5];
+                int i = 0, intvalue = files->pid;
+                while(intvalue!=0)
+                {
+                    pid[i++] = intvalue % 10 + '0';
+                    intvalue = intvalue / 10;
+                }
+                pid[i] = '\0';
 
-                write(1, "\n", 10);
+                if (files->ppid == 0) {
+                    ppid[0] = '0';
+                    ppid[1] = '\0';
+                }
+                else {
+                    i = 0, intvalue = files->ppid;
+                    while(intvalue!=0)
+                    {
+                        ppid[i++] = intvalue % 10 + '0';
+                        intvalue = intvalue / 10;
+                    }
+                    ppid[i] = '\0';
+                }
+                if(files->state == 2) {
+                    continue;
+                }
+                write(1, pid, strlen(pid));
+                write(1, "    ", 4);
+                write(1, ppid, strlen(ppid));
+                write(1, "     ", 5);
+                if (files->state == 0)
+                    write(1, "RUNNING ", 8);
+                else if (files->state == 1)
+                    write(1, "SLEEPING", 8);
+                else if (files->state == 2)
+                    write(1, "ZOMBIE  ", 8);
+                write(1, "   ", 3);
+                write(1, files->d_name, strlen(files->d_name));
+
+                write(1, "\n", 1);
             }
             else
                 break;
@@ -48,9 +64,11 @@ int main(int argc, char* argv[]) {
         //write(1, "\n", 10);
         c=closedir(directory);
         if(c==-1)
-            write(1,"Close failed\n",50);
+            write(1,"Close failed\n",13);
     }
     return 0;
 }
+
+
 
 

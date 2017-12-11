@@ -105,9 +105,11 @@ struct pml4t* duplicate_page_table(struct pml4t *source_table);
 struct pml4t* copy_pml4(struct pml4t *user_table);
 void map_address_initial(uint64_t address, uint64_t map_phy_address);
 void copy_page(struct pml4t *user_table, uint64_t page);
-
+void map_pagetables();
+void unmap_page(uint64_t virtual_address);
 #define	KERNBASE	0xffffffff80000000
 #define	USERBASE	0xFFFFCCCC00000000
 
 #endif //COURSEPROJ_VIRTUALMEM_H
+
 

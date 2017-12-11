@@ -7,3 +7,4 @@ int puts(const char *s)
       return EOF;
   return (putchar('\n') == '\n') ? 0 : EOF;
 }
+

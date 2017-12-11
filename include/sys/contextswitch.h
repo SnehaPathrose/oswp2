@@ -3,6 +3,8 @@
 //
 #include <sys/defs.h>
 #include <sys/virtualmem.h>
+#include <sys/process.h>
+
 #ifndef COURSEPROJ_CONTEXTSWITCH_H
 #define COURSEPROJ_CONTEXTSWITCH_H
 
@@ -26,37 +28,11 @@ struct vm_area_struct {
 struct mm_struct {
     struct vm_area_struct *list_of_vmas;
     int num_of_vmas;
+    malloc_header *freelist;
     //uint64_t page_table;
 };
 
-struct task_struct {
-    volatile long state;
-    long nice;
-    struct mm_struct *mm;
-    struct mm_struct *active_mm;
-    struct task_struct *next, *prev;
-    int pid;
-    struct thread *thread_list;
-};
 
-struct thread {
-    uint64_t    rsp;
-    uint64_t    ss;
-    uint64_t    kernelrsp;
-    uint64_t    kernelSs;
-    struct task_struct*  parent;
-    uint64_t    priority;
-    int         state;
-    //ktime_t     sleepTimeDelta;
-};
-
-struct registers
-{
-    uint64_t rax;
-    uint64_t rdi;
-    uint64_t rsi;
-    uint64_t rdx;
-};
 
 struct PCB {
     uint64_t kstack[400];
@@ -65,17 +41,21 @@ struct PCB {
     int is_wait;
     uint64_t rsp, heap_ptr,ursp;
     enum { RUNNING, SLEEPING, ZOMBIE } state;
-    int exit_status;
+    //int exit_status;
     struct PCB *child_process;
     struct PCB *next;
-    struct PCB *parent;
+    // struct PCB *parent;
     uint64_t gotoaddr;
     struct pml4t *page_table;
     uint64_t rax;
+    uint64_t rbx;
     uint64_t rdx;
     uint64_t rdi;
     uint64_t rsi;
-    char cwd[50];
+    uint64_t rcx;
+    uint64_t rbp;
+    char cwd[25];
+    char name[25];
 };
 
 struct PCB *mainthread;
@@ -90,12 +70,13 @@ void idle_func();
 void (*on_completion_pointer)();
 void switch_to_new_process(struct PCB *tss);
 struct PCB* create_duplicate_process(struct PCB* forked_process);
-char *check_for_ip(int size_ip, char *ab);
 struct PCB *create_thread(uint64_t faddr);
 #define KSTACKLEN 400
 #define STACK 0x01
 #define HEAP 0x02
 #define OTHER 0x03
 #endif //COURSEPROJ_CONTEXTSWITCH_H
+
+
 
 

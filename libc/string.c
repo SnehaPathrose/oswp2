@@ -5,7 +5,7 @@
 #include <sys/defs.h>
 #include <stdlib.h>
 
-/*char *strcpy(char *String1, char *String2)
+char *strcpy(char *String1, char *String2)
 {
     int i;
     for (i=0;String2[i]!='\0';i++)
@@ -15,7 +15,7 @@
 
 }
 
-char *strncpy(char *String1, char *String2, int n)
+/*char *strncpy(char *String1, char *String2, int n)
 {
     int i;
     for (i = 0; String2[i]!='\0' && i < n; i++)
@@ -60,22 +60,22 @@ void umemset(void* s, int num, int size)
 {
     unsigned char *uc =s;
     for (int i = 0; i < size; i++) {
-        *uc = (unsigned char)num;
-        uc++;
+        *(uc+i) = num;
+        // uc++;
     }
 }
 
 //function to concatenate two strings
 
-char *strcat(char *string1,char *string2) {
+char *strcat(char *string1,char *string2, char *concatstr) {
     int string1len = 0, string2len = 0, string3len = 0, i, j;
-    char *concatstr;
+
     while(string1[string1len] != '\0')
         ++string1len;
     while(string2[string2len] != '\0')
         ++string2len;
     string3len = string1len + string2len+1;
-    concatstr = (char *)malloc(string3len * (uint64_t)sizeof(char));
+    //concatstr = (char *)malloc(string3len * sizeof(char));
     umemset(concatstr, '\0', string3len * sizeof(char));
     for(i=0; i<string1len; i++)
         concatstr[i] = string1[i];
@@ -94,8 +94,10 @@ void trim(char *string1) {
 char  **tokenize(char *string)
 {
     char **tokens=(char **)malloc(5*sizeof(char *));
+    umemset((void *)tokens,0,5);
     int i = 0, j =0;
     tokens[j]=(char *)malloc(25*sizeof(char));
+    // for(int l=0;l<5;l++)
     for(int k = 0; k < 25; k++) {
         tokens[j][k] = '\0';
     }
@@ -142,46 +144,9 @@ int tokencount(char **String)
     return i;
 }
 
-/*//function to check if a character is present in a string
-int contain(char *String,char c)
-{
-    int i,found=0;
-    for(i=0;String[i]!='\0';i++)
-        if(String[i]==c)
-        {
-            found=1;
-            break;
-        }
-    return found;
-}
 
-//function to split envValue by =
-char** tokenizepath(char* envValue) {
-    char **tokens=(char **)malloc(100*sizeof(char *));
-    int i = 0, j =0;
-    tokens[j]=(char *)malloc(1000*sizeof(char));
-    //while(*(envValue++) != '=');
 
-    while(*envValue != '\0')
-    {
-        if ((*envValue != ':'))
-        {
-            *(*(tokens+j)+i) = *envValue;
-            i++;
-        }
-        else
-        {
-            j++;
-            if(*(envValue+1)!='\0')
-                tokens[j]=(char *)malloc(1000*sizeof(char));
-            i = 0;
-        }
-        envValue++;
-    }
-    return tokens;
 
-    //puts(envValue);
-}*/
 
 int atoi(char *s)
 {
@@ -192,4 +157,7 @@ int atoi(char *s)
     }
     return num;
 }
+
+
+
 

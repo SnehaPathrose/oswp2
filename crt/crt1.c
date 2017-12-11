@@ -7,6 +7,8 @@ void _start() {
     "mov 8(%rsp), %rdi\n\t");
     __asm__ volatile("add $16, %rsp\n\t");
     __asm__ volatile("movq (%rsp), %rsi\n\t");
+    __asm__ volatile("add $8, %rsp\n\t");
+    __asm__ volatile("movq (%rsp), %rdx\n\t");
     __asm__ volatile("call main\n\t":"=a"(ret)::"rdi");
     exit(0);
 }

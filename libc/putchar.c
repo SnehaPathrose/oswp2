@@ -7,7 +7,8 @@ int putchar(int c)
     char buf[2];
     buf[0] = (char) c;
     buf[1] = '\0';
-    write(1,buf,25);
+    write(1,buf,1);
 
     return buf[0];
 }
+

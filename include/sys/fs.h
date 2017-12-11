@@ -38,13 +38,14 @@ struct filesys_tnode {
 }*file_descriptors[100], *filefs_root, *proc_directory;
 
 
-#define NAME_MAX 255
+#define NAME_MAX 25
 
 typedef struct dirent{
     char d_name[NAME_MAX+1];
     int d_no;
     int fd;
     int state;
+    uint32_t pid, ppid;
 }DIR;
 DIR *do_opendir(char *dirname);
 struct dirent *do_readdir(DIR *dir);
@@ -55,12 +56,14 @@ int do_fopen(char *file_name);
 struct filesys_tnode* find_file(char* file_name);
 int do_open(char *file_name);
 int read_vfs(struct filesys_tnode *node, char *buf, int size);
-int write_vfs(struct filesys_node *node, char *buf, int size, int offset);
+int write_vfs(struct filesys_tnode *node, char *buf, int size, int offset);
 struct filesys_tnode * create_t_node(char name[256]);
 void initialise_file_system();
+int check_for_ip(char *ab, int size_ip, uint64_t position);
 
 
 #endif //COURSEPROJ_FS_H
+
 
 
 

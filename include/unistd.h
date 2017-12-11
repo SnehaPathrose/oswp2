@@ -13,7 +13,7 @@ int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
 
 int fork();
-int execvpe(const char *file, char *const argv[]);
+int execvpe(const char *file, char *const argv[], char *const envp[]);
 pid_t wait(int *status);
 int waitpid(int pid, int *status);
 int access(const char *pathname, int mode);
@@ -35,4 +35,5 @@ int pipe(int pipefd[2]);
 #define X_OK 4
 
 #endif
+
 

@@ -41,6 +41,7 @@ void init_pic()
     __asm__ volatile ( "outb %0, %1" : : "a"(pic1mask), "Nd"(0x21) );
     __asm__ volatile ( "outb %0, %1" : : "a"(pic2mask), "Nd"(0xa1) );
 
-    __asm__ volatile ( "outb %0, %1" : : "a"((uint8_t)0xf8), "Nd"(0x21) );
-    __asm__ volatile ( "outb %0, %1" : : "a"((uint8_t)0xdf), "Nd"(0xa1) );
+    __asm__ volatile ( "outb %0, %1" : : "a"((uint8_t)0xfd), "Nd"(0x21) );
+    // __asm__ volatile ( "outb %0, %1" : : "a"((uint8_t)0xdf), "Nd"(0xa1) );
 }
+

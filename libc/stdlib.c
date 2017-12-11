@@ -14,3 +14,10 @@ void exit(int status)
     __asm__ volatile("movq $9,%rax");
     __asm__ volatile("int $0x80");
 }
+
+void free(void *ptr)
+{
+    __asm__ volatile("movq $18,%rax");
+    __asm__ volatile("int $0x80");
+}
+

@@ -9,7 +9,7 @@ char *getcwd(char *buf, size_t size)
     __asm__ volatile("int $0x80":"=a"(ret));
     return (char *)ret;
 }
-int execvpe(const char *file, char *const argv[])
+int execvpe(const char *file, char *const argv[], char *const envp[])
 {
     int ret;
     __asm__ volatile("movq $7,%rax");

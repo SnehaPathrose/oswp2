@@ -5,20 +5,24 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-int main(int argc,char* argv[])
+int main(int argc,char* argv[], char *envp[])
 {
     int fileptr=0;
+    char concatstr[25];
     char *filename=0;
     char *cwd;
     ssize_t s;
 
     //cwd=getcwd(buf,50);
     char *line=(char *)malloc(100);
+    //umemset(line,'\0',100);
+    char *buf=(char *)malloc(25);
+    umemset(buf,'\0',25);
     if(argv[1][0]!='/')
     {
-        char *buf=(char *)malloc(25);
+
         cwd=getcwd(buf,25);
-        filename=strcat(cwd,argv[1]);
+        filename=strcat(cwd,argv[1],concatstr);
 
     }
     else
@@ -41,6 +45,10 @@ int main(int argc,char* argv[])
         write(1,line,s);
     }
     close(fileptr);
+    free(buf);
+    free(line);
     return 0;
 }
+
+
 
