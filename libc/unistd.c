@@ -25,6 +25,20 @@ int fork()
     return ret;
 }
 
+pid_t getpid(void) {
+    pid_t ret;
+    __asm__ volatile("movq $1,%rax");
+    __asm__ volatile("int $0x80":"=a"(ret));
+    return ret;
+}
+
+pid_t getppid(void) {
+    pid_t ret;
+    __asm__ volatile("movq $21,%rax");
+    __asm__ volatile("int $0x80":"=a"(ret));
+    return ret;
+}
+
 int waitpid(int pid, int *status) {
     int ret;
     __asm__ volatile("movq $11,%rax");

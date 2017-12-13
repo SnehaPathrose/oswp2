@@ -39,6 +39,8 @@ int kstrcmp(char *string1, char *string2) {
     return 0;
 }
 
+
+
 void kmemcpy(uint64_t *source, uint64_t *dest, uint64_t size) {
     uint64_t i;
     size = size / 8;
@@ -107,3 +109,13 @@ char *kstrncopy(char *String1, char *String2, int n) {
     return String1;
 
 }
+
+void itoa(int intvalue, char *string) {
+    int i = 0;
+    while (intvalue != 0) {
+        string[i++] = intvalue % 10 + '0';
+        intvalue = intvalue / 10;
+    }
+    string[i] = '\0';
+}
+

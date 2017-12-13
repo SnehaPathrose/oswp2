@@ -138,16 +138,19 @@ void kscanf(uint8_t keyscancode) {
             kprintf("%c", key_character);
         }
 
-        if (size != 1024 && *address_of_buf != '\0') {
-            address_of_buf++;
-            size++;
-        } else {
-            reset_terminal();
+        if (keyscancode != 58 && keyscancode != 42 && keyscancode != 54 && keyscancode != 29) {
+            if (size != 1024 && *address_of_buf != '\0') {
+                address_of_buf++;
+                size++;
+            } else {
+                reset_terminal();
+            }
         }
     }
 
     //return key_press;
 }
+
 
 
 

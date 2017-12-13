@@ -6,11 +6,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #define BIN "bin/"
-void bg_fg_process(char **command)
+void bg_fg_process(char **command, char *envp[])
 {
-
     int status,commandc;
-    char *env[]={"/rootfs/bin/",NULL};
+    //char *env[]={"/rootfs/bin/",NULL};
     char *filename = 0;
     char concatstr[20];
     pid_t pid;
@@ -20,20 +19,19 @@ void bg_fg_process(char **command)
     //filename = concat(BIN,command[0]);
     //if(access(filename,F_OK)< 0)
     //filename=concat("/usr/",filename);
+
     pid = fork();
     if(pid == 0)
     {
-        /* if(strcmp("&", command[commandc-1]) == 0)
-             command[commandc-1]=NULL;*/
-        /*if((strcmp(command[0],"ls")==0) ||
-           (strcmp(command[0],"cat")==0) ||
-           (strcmp(command[0],"kill")==0) ||
-           (strcmp(command[0],"ps")==0) ||
-           (strcmp(command[0],"echo")==0) ||
-           (strcmp(command[0],"sleep")==0) ||
-           (strcmp(command[0],"pwd")==0) ||
-           (strcmp(command[0],"cd")==0))
-        {*/
+        /*char *path_values;
+        path_values = getenv("PATH");
+        char **tokenized_path = tokenize_path(path_values);
+        for (int i = 0; tokenized_path[i] != 0x0; i++) {
+            filename = strcat(tokenized_path[i], command[0], concatstr);
+            a = access(filename, F_OK);
+            if (a != -1)
+                break;
+        }*/
         filename = strcat(BIN,command[0],concatstr);
         a=access(filename,F_OK);
         if(a==-1)
@@ -44,44 +42,13 @@ void bg_fg_process(char **command)
 
         }
         else {
-            execvpe(filename,(char * const *)command,env);
+            execvpe(filename,(char * const *)command,(char * const *)envp);
         }
 
-        /*if(access(filename, F_OK) < 0)
-        {
-            int i = 0;
-            char** abc = tokenizepath(getenv("PATH"));
-            while(abc[i] != '\0') {
-                abc[i] = concat(abc[i], "/");
-                abc[i] = concat(abc[i], command[0]);
-                if ((strcmp(abc[i], "/bin/ls") == 0) || (strcmp(abc[i], "/bin/cat") == 0))
-                {
-                    i++;
-                    continue;
-                }
-                if(access(abc[i], F_OK) >= 0)
-                    break;
-                *//*filename = fopen(abc[i], O_RDONLY);
-                    if (filename > 0)
-                        break;*//*
 
-                    i++;
-                }
-                *//*if (filename < 0) {
-                    puts("File Not Found\n");
-                    return 1;
-                }*//*
-                filename = abc[i];
-            }*/
 
     }
-        /*else {
-            puts("Command not found");
-            exit(0);
-        }*/
-        //char *envp[] = { NULL };
-        //execvpe(filename,(char * const *)command/*, envp*/);
-        //}
+
     else if(pid > 0)
     {
         if(strcmp("&", command[commandc-1]) != 0)
@@ -176,7 +143,7 @@ int main(int argc, char *argv[],char *envp[])
         //pid=fork();
         // if(pid==0)
         //{
-        bg_fg_process(split);
+        bg_fg_process(split, envp);
         // write(1,"hey",5);
         //  exit(0);
 

@@ -11,8 +11,9 @@
 #include <sys/allocator.h>
 #include <sys/idt.h>
 
+
 void initialise_syscalls() {
-    syscalls[0] = &sys_write;
+    /*syscalls[0] = &sys_write;
     syscalls[1] = &sys_getpid;
     syscalls[2] = &sys_malloc;
     syscalls[3] = &sys_getcwd;
@@ -31,11 +32,18 @@ void initialise_syscalls() {
     syscalls[16] = &sys_kill;
     syscalls[17] = &sys_chdir;
     syscalls[18] = &sys_free;
+    syscalls[19] = &sys_setenv;
+    syscalls[20] = &sys_getenv;*/
 }
 
-uint64_t sys_getpid() {
-    //kprintf(msg);
-    return currentthread->pid;
+pid_t sys_getpid() {
+    pid_t pid = currentthread->pid;
+    return pid;
+}
+
+pid_t sys_getppid() {
+    pid_t ppid = currentthread->ppid;
+    return ppid;
 }
 
 int sys_write(int fd, char *msg, int size) {
@@ -136,6 +144,47 @@ int sys_execvpe(const char *file, char *const argv[], char *const envp[]) {
     return r;
 }
 
+/*uint32_t sys_wait(int *status) {
+    uint32_t parent_id = currentthread->pid;
+    int setwait = 0;
+    currentthread->state = 1;
+    struct PCB *temp_list = threadlist, *prev = NULL, *next = NULL;
+    while (temp_list != NULL) {
+        if (temp_list->ppid == parent_id && parent_id != 0) {
+            temp_list->is_wait = 1;
+            setwait = 1;
+        }
+        temp_list = temp_list->next;
+    }
+    if (setwait == 1) {
+        temp_list = threadlist;
+        while (temp_list != NULL) {
+            if (temp_list->pid == parent_id) {
+                if (prev != NULL) {
+                    next = temp_list->next;
+                    prev->next = next;
+                } else {
+                    temp_list = temp_list->next;
+                }
+                break;
+            }
+            prev = temp_list;
+            temp_list = temp_list->next;
+        }
+
+        if (blockedlist == NULL) {
+            blockedlist = currentthread;
+            currentthread->next = NULL;
+        } else {
+            currentthread->next = blockedlist;
+            blockedlist = currentthread;
+        }
+    }
+    currentthread->state = 3;
+    schedule();
+    return 0;
+}*/
+
 uint32_t sys_waitpid(uint32_t pid, int *status) {
     uint32_t parent_id = currentthread->pid;
     int setwait = 0;
@@ -172,24 +221,62 @@ uint32_t sys_waitpid(uint32_t pid, int *status) {
             blockedlist = currentthread;
         }
     }
+    currentthread->state = 3;
     schedule();
     return pid;
 }
 
 int sys_fork() {
     //uint64_t addr=(uint64_t)*((uint64_t *)currentthread->rsp);
+    //struct filesys_tnode *temp_proc = proc_directory;
+    //int envc = 0;
+    //struct filesys_tnode *parent_node = NULL, *child_node = NULL;
     struct PCB *new_process = bump(sizeof(struct PCB));
     new_process = copy_process(currentthread, new_process);
     add_to_proc_list(new_process);
+
+    /*if (currentthread->pid > 2) {
+        char pid[4];
+        itoa(new_process->pid, pid);
+        for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
+            struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
+            if (kstrcmp(proc_node->name, pid) == 0) {
+                child_node = proc_node;
+                break;
+            }
+        }
+
+        char ppid[4];
+        temp_proc = proc_directory;
+        itoa(currentthread->pid, pid);
+        for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
+            struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
+            if (kstrcmp(proc_node->name, ppid) == 0) {
+                parent_node = proc_node;
+                break;
+            }
+        }
+
+        if (parent_node != NULL && child_node != NULL) {
+            for (int i = 0; parent_node->link_to_inode->envp[i] != NULL; i++) {
+                //envs[i] = (char *) ((uint64_t)envs + (50 * i));
+                kstrcopy(child_node->link_to_inode->envp[i], parent_node->link_to_inode->envp[i]);
+                envc++;
+            }
+            //envs[envc] = (char *) ((uint64_t)envs + (50 * envc));
+            kstrcopy(child_node->link_to_inode->envp[envc], "\0");
+        }
+    }*/
+
     struct pml4t *forked_table = duplicate_page_table(
             (struct pml4t *) ((uint64_t) currentthread->page_table + KERNBASE));
     flush_tlb();
     new_process->page_table = (struct pml4t *) ((uint64_t) forked_table - KERNBASE);
+    //uint64_t r12value = 0;
     __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(currentthread->rsp));
+    //__asm__ volatile("mov %%r12,%0":"=r"(r12value));
     currentthread->rsp = currentthread->rsp + 24;
-    new_process->rsp = (uint64_t) &new_process->kstack[KSTACKLEN - 1 -
-                                                       (((uint64_t) &currentthread->kstack[399] - currentthread->rsp) /
-                                                        8)];
+    new_process->rsp = (uint64_t) &new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) /8)];
 
     //*(uint64_t *)(new_process->rsp+144)=new_process->ursp;
     new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
@@ -206,6 +293,8 @@ int sys_fork() {
                         6] = 0x0;
     new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
                         7] = 0x0;
+    /*new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
+                        8] = r12value;*/
     new_process->rsp = (uint64_t) &new_process->kstack[KSTACKLEN - 1 -
                                                        (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] -
                                                          currentthread->rsp) / 8) - 7];
@@ -359,10 +448,6 @@ int sys_kill(uint32_t pid, int sig) {
                 }
                 memset(&proc_directory->link_to_inode->sub_files_list[i], 0, sizeof(struct filesys_tnode));
                 proc_directory->link_to_inode->num_sub_files--;
-                //memset(&killproc, 0, sizeof(struct filesys_tnode));
-                //memset(killproci, 0, sizeof(struct filesys_node));
-                //memset(&killproc, 0, sizeof(struct filesys_tnode));
-                //kfree(&killproc);
                 kfree(killproci);
             }
         }
@@ -371,12 +456,7 @@ int sys_kill(uint32_t pid, int sig) {
 }
 
 void syscall_handler(void *sysaddress) {
-    //uint64_t syscallno;
     uint64_t ret;
-    //void *sysaddress;
-    //syscallno=currentthread->rax;
-    //sysaddress = (void *)syscalls[syscallno];
-    // if (syscallno < MAXSYSCALLS) {
 
     __asm__ volatile("\tpush %rax\n");
     __asm__ volatile("\tpush %rbx\n");
@@ -385,11 +465,13 @@ void syscall_handler(void *sysaddress) {
     __asm__ volatile("\tpush %rdi\n");
     __asm__ volatile("\tpush %rsi\n");
     __asm__ volatile("\tpush %rbp\n");
+    // __asm__ volatile("\tpush %r12\n");
     __asm__ volatile( "movq %0,%%rdi"::"m"(currentthread->rdi));
     __asm__ volatile( "movq %0,%%rsi"::"m"(currentthread->rsi));
     __asm__ volatile( "movq %0,%%rdx"::"r"(currentthread->rdx));
     __asm__ volatile( "callq *%0;":"=a"(ret) :"r" (sysaddress):"rdx", "rdi", "rsi");
     __asm__ volatile("movq %0, 112(%%rsp)" : "=r" (ret));
+    //__asm__ volatile("\tpop %r12\n");
     __asm__ volatile("\tpop %rbp\n");
     __asm__ volatile("\tpop %rsi\n");
     __asm__ volatile("\tpop %rdi\n");
@@ -400,3 +482,4 @@ void syscall_handler(void *sysaddress) {
 
     //}
 }
+

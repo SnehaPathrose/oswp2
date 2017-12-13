@@ -17,7 +17,7 @@ char  **tokenize(char *string);
 int tokencount(char **String);
 char *strcat(char *string1,char *string2,char *concatstr);
 int contain(char *String,char c);
-char** tokenizepath(char* envValue);
+char  **tokenize_path(char *string);
 void trim(char *string1);
 int atoi(char *s);
 void memcpychar(void *source, void *dest,uint64_t size);

@@ -21,6 +21,7 @@ struct filesys_node {
     uint32_t flags;
     uint64_t starting_position;
     uint64_t offset;
+    char envp[5][40];
     struct filesys_tnode *sub_directory_list;
     struct filesys_tnode *sub_files_list;
     struct PCB *link_to_process;
@@ -63,6 +64,7 @@ int check_for_ip(char *ab, int size_ip, uint64_t position);
 
 
 #endif //COURSEPROJ_FS_H
+
 
 
 

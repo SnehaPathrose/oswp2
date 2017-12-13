@@ -43,6 +43,15 @@ static int hcount = 0;   // count in hours
 static long mscount = 0; // count in timer frequency
 static long tcount = 0;
 
+static void *syscalls[MAXSYSCALLS] =
+        {
+                &sys_write, &sys_getpid, &sys_malloc, &sys_getcwd, &sys_opendir,
+                &sys_readdir, &sys_closedir, &sys_execvpe, &sys_fork, &sys_exit,
+                &sys_read, &sys_waitpid, &sys_access, &sys_open, &sys_close,
+                &sys_sleep, &sys_kill, &sys_chdir, &sys_free, &sys_setenv,
+                &sys_getenv, &sys_getppid
+        };
+
 /*
  * Function:  handletime
  * --------------------
@@ -128,8 +137,10 @@ void interrupt0() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %r8\n");
     __asm__("\tpush %r9\n");
+    //__asm__("\tpush %r12\n");
     handletime();
     // get the saved registers
+    //__asm__("\tpop %r12\n");
     __asm__("\tpop %r9\n");
     __asm__("\tpop %r8\n");
     __asm__("\tpop %rdi\n");
@@ -168,8 +179,9 @@ void interrupt1() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %r8\n");
     __asm__("\tpush %r9\n");
+    //__asm__("\tpush %r12\n");
     kscanf(keyscancode);
-
+    //__asm__("\tpop %r12\n");
     __asm__("\tpop %r9\n");
     __asm__("\tpop %r8\n");
     __asm__("\tpop %rdi\n");
@@ -178,55 +190,6 @@ void interrupt1() {
     __asm__("\tpop %rcx\n");
     __asm__("\tpop %rax\n");
     __asm__("\tpop %r11\n");
-    /*if ((keyscancode & 0x80) == 0)
-    {
-        temp2 += 2;
-        *temp2 = ' ';
-        temp2 = (char *)(KERNBASE + 0xb8ef0);
-        if (keyscancode == 58) //caps lock
-        {
-            if (controlflag & 0x01)
-            {
-                controlflag=controlflag & 0xfe;
-            }
-            else
-                controlflag=controlflag | 0x01;
-        }
-        else
-        if (keyscancode == 42 || keyscancode == 54) //shift
-        {
-            controlflag = controlflag | 0x02;
-        }
-        else
-        if (keyscancode == 29) // control
-        {
-                controlflag = controlflag | 0x04;
-        }
-        else {
-
-            if (controlflag & 0x04) //ctrl
-            {
-                *temp2 = '^';
-                temp2 += 2;
-                *temp2 = scantoCchar[keyscancode];
-                controlflag = controlflag & 0xfb;
-            }
-            else
-            if (controlflag & 0x02) //shift
-            {
-                *temp2 = scantoUchar[keyscancode];
-                controlflag = controlflag & 0xfd;
-            }
-            else
-            if (controlflag & 0x01) //caps lock
-            {
-                *temp2 = scantoUchar[keyscancode];
-            }
-            else {
-                *temp2 = scantochar[keyscancode];
-            }
-        }
-    }*/
     __asm__ volatile ("movq %rax,%r9");
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20));
     __asm__ volatile ("movq %r9,%rax");
@@ -275,6 +238,7 @@ void interrupt_syscall() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %rsi\n");
     __asm__("\tpush %rbp\n");
+    //__asm__("\tpush %r12\n");
     __asm volatile("movq 88(%%rsp), %0" : "=g" (currentthread->ursp));
     __asm__ volatile("movq 48(%%rsp), %0": "=r"(currentthread->rax));
     __asm__ volatile("movq 24(%%rsp),%0": "=r"(currentthread->rdx));
@@ -283,9 +247,10 @@ void interrupt_syscall() {
     void *sysaddress = (void *) syscalls[currentthread->rax];
 
     syscall_handler(sysaddress);
-    //schedule();
+    schedule();
     //__asm__ volatile ( "callq %0;"::"r" (&syscall_handler):"rdx");
     // get the saved registers
+    //__asm__("\tpop %r12\n");
     __asm__("\tpop %rbp\n");
     __asm__("\tpop %rsi\n");
     __asm__("\tpop %rdi\n");
@@ -305,16 +270,6 @@ void interrupt_syscall() {
 
 void interrupt5() {
     kprintf("General Protection Fault\n");
-
-    uint64_t faultAddr;
-    uint64_t cr3;
-
-    __asm volatile("mov %%cr2, %0" : "=r" (faultAddr));
-    __asm volatile("mov %%cr3, %0" : "=r" (cr3));
-
-    kprintf("\n gpf cr3 %p\n", cr3);
-    kprintf("\n gpf cr2 %p\n", faultAddr);
-
     while (1);
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20));
     __asm__( "\tiretq\n");
@@ -350,13 +305,17 @@ void interrupt4() {
     __asm__ volatile ( "pushq %rsi ");
     __asm__ volatile ( "pushq %r8 ");
     __asm__ volatile ( "pushq %r9 ");
+    //__asm__ volatile ( "pushq %r12 ");
     __asm__ volatile("mov %%rsp,%0":"=r"(currentthread->rsp));
     uint64_t *arg1 = 0;
     __asm__ volatile ("movq %%cr2, %0;" :"=a"(arg1));
     //if (arg1 & 0x)
     //if((uint64_t)arg1>0x400000) {
 
-    uint64_t pml4t_index = (((uint64_t) arg1 >> 39) & 0x00000000000001ff);
+    uint64_t pml4t_index = ((uint64_t)arg1 >> 39) & 0x00000000000001ff;
+    /*uint64_t pdpt_index = ((uint64_t)arg1 >> 30) & 0x00000000000001ff;
+    uint64_t pdt_index = ((uint64_t)arg1 >> 21) & 0x00000000000001ff;
+    uint64_t pt_index = ((uint64_t)arg1 >> 12) & 0x00000000000001ff;*/
     //struct pml4t *current_page_table =  ((struct pml4t *)((uint64_t)currentthread->page_table + KERNBASE));
     if (is_cow_enabled(pml4t_index)) {
 
@@ -365,17 +324,24 @@ void interrupt4() {
         //__asm__ volatile("mov %0, %%cr3"::"r"(pml4));
         copy_page(((struct pml4t *) ((uint64_t) currentthread->page_table + KERNBASE)), (uint64_t) arg1);
     } else {
+        /*struct pml4t *current_table = ((struct pml4t *) ((uint64_t) currentthread->page_table + KERNBASE));
+        struct pdpt *pdpt = (struct pdpt *) (KERNBASE + (current_table->PML4Entry[pml4t_index].page_value & 0xfffffffffffff000));
+        struct pdt *pdt = (struct pdt *) (KERNBASE + (pdpt->PDPEntry[pdpt_index].page_value & 0xfffffffffffff000));
+        struct pt *pt = (struct pt *) (KERNBASE + (pdt->PDEntry[pdt_index].page_value & 0xfffffffffffff000));
+        uint64_t flags = pt->PageEntry[pt_index].page_value & 0xfff;*/
+        /*if (flags & 0x4) {
+            kprintf("\nIllegal access to kernel space. This process will now close. [%x]\n", arg1);
+            on_completion_pointer();
+        } else if ((flags & 0x2) == 0x0) {
+            kprintf("\nIllegal access to read-only space. This process will now close. [%x]\n", arg1);
+            on_completion_pointer();
+        } */
         if (pml4t_index == 511) {
             kprintf("\nIllegal access to kernel space. This process will now close. [%x]\n", arg1);
-            //map_address((uint64_t) arg1, (uint64_t) ((uint64_t) arg1 - KERNBASE));
             on_completion_pointer();
         } else {
             struct vm_area_struct *vmas = currentthread->mm->list_of_vmas, *vma_stack = NULL, *vma_heap = NULL;
-            /*for (int i = 0; i < currentthread->mm->num_of_vmas; i++) {
-                if (vmas[i].vma_type == STACK) {
-                    kprintf("Stack Found");
-                }
-            }*/
+
             while (vmas != NULL) {
                 if (vmas->vma_type == STACK) {
                     //kprintf("Stack Found");
@@ -433,6 +399,7 @@ void interrupt4() {
      }*/
     //__asm__ volatile ( "popq %r9 ");
     //__asm__ volatile ( "popq %r9 ");
+    //__asm__ volatile ( "popq %r12 ");
     __asm__ volatile ( "popq %r9 ");
     __asm__ volatile ( "popq %r8 ");
     __asm__ volatile ( "popq %rsi ");
@@ -535,6 +502,8 @@ void init_idt() {
     idtr_addr.size = sizeof(idt);
     __asm__ ( "lidt %0" : : "m"(idtr_addr));
 }
+
+
 
 
 

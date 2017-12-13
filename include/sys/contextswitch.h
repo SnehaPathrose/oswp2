@@ -32,15 +32,15 @@ struct mm_struct {
     //uint64_t page_table;
 };
 
-
+#define KSTACKLEN 400
 
 struct PCB {
-    uint64_t kstack[400];
+    uint64_t kstack[KSTACKLEN];
     struct mm_struct *mm;
     uint32_t pid,ppid;
     int is_wait;
     uint64_t rsp, heap_ptr,ursp;
-    enum { RUNNING, SLEEPING, ZOMBIE } state;
+    enum { RUNNING, SLEEPING, ZOMBIE, BLOCKED } state;
     //int exit_status;
     struct PCB *child_process;
     struct PCB *next;
@@ -54,6 +54,7 @@ struct PCB {
     uint64_t rsi;
     uint64_t rcx;
     uint64_t rbp;
+    //uint64_t r12;
     char cwd[25];
     char name[25];
 };
@@ -71,11 +72,12 @@ void (*on_completion_pointer)();
 void switch_to_new_process(struct PCB *tss);
 struct PCB* create_duplicate_process(struct PCB* forked_process);
 struct PCB *create_thread(uint64_t faddr);
-#define KSTACKLEN 400
+
 #define STACK 0x01
 #define HEAP 0x02
 #define OTHER 0x03
 #endif //COURSEPROJ_CONTEXTSWITCH_H
+
 
 
 

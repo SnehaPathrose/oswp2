@@ -6,9 +6,10 @@
 #define COURSEPROJ_SYSCALL_H
 #include <sys/defs.h>
 #include <sys/fs.h>
-#define MAXSYSCALLS 20
+#define MAXSYSCALLS 50
 
-uint64_t sys_getpid();
+pid_t sys_getpid();
+pid_t sys_getppid();
 int sys_write(int fd,char *msg,int size);
 uint64_t sys_malloc(uint64_t size);
 void sys_free(void *ptr);
@@ -28,10 +29,13 @@ int sys_open(const char *pathname, int flags);
 int sys_close(int fd);
 unsigned int sys_sleep(unsigned int seconds);
 int sys_chdir(const char *path);
+char *sys_getenv(char *name);
+int sys_setenv(char *name, char *value);
 void initialise_syscalls();
 
-const void  *syscalls[MAXSYSCALLS] ;
+//const void  *syscalls[MAXSYSCALLS];
 #endif //COURSEPROJ_SYSCALL_H
+
 
 
 

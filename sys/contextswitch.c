@@ -31,9 +31,10 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t push %0\n" : "=m"(me->rdx));
         __asm__ volatile("\t push %0\n" : "=m"(me->rdi));
         __asm__ volatile("\t push %0\n" : "=m"(me->rsi));
+        //__asm__ volatile("\t push %r12\n");
         __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(me->rsp));
         __asm__ volatile("\t mov %0, %%rsp\n" : "=m"(next->rsp));
-        //__asm__ volatile("\t pop %rsi\n");
+        //__asm__ volatile("\t pop %r12\n");
         __asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rdi\n");
         __asm__ volatile("\t pop %rdx\n");
@@ -44,6 +45,7 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t ret\n" );
     } else {
         __asm__ volatile("\t mov %0, %%rsp\n" : "=m"(next->rsp));
+        // __asm__ volatile("\t pop %r12\n");
         __asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rdi\n");
         __asm__ volatile("\t pop %rdx\n");
@@ -147,24 +149,68 @@ void fun1() {
     create_thread((uint64_t) idle);
     create_thread((uint64_t) &user_process);
     schedule();
-    /* char *ab = bump(10);;
-     ab = check_for_ip(10, ab);
-     kprintf("Outside ip %s", ab);*/
 }
 
 
 void schedule() {
     struct PCB *me = NULL, *next = NULL, *temp;
 
-    //some scheduling logic for now
-    //temp = threadlist;
-    /*while(temp!=NULL) {
-        if (temp->state == 0) {
-            me = temp;
-            break;
+    __asm__ volatile("mov %rdi,%r8");
+    __asm__ volatile("mov %%r8,%0":"=m"(currentthread->rdi));
+    __asm__ volatile("mov %%rbx,%0":"=r"(currentthread->rbx));
+    __asm__ volatile("mov %%rcx,%0":"=r"(currentthread->rcx));
+    __asm__ volatile("mov %%rbp,%0":"=r"(currentthread->rbp));
+    __asm__ volatile("mov %%rsi,%0":"=r"(currentthread->rsi));
+    //__asm__ volatile("mov %%r12,%0":"=r"(currentthread->r12));
+    __asm__ volatile("mov %%rdx,%0":"=r"(currentthread->rdx));
+    me = currentthread;
+    temp = threadlist;
+    if (me != NULL && me->next != NULL && me->state != 3) {
+        temp = me->next;
+        while (temp != NULL) {
+            if (temp->state == 1) {
+                next = temp;
+                break;
+            }
+            temp = temp->next;
+
         }
-        temp = temp->next;
-    }*/
+        if (next == NULL) {
+            temp = threadlist;
+            while (temp != NULL) {
+                if (temp->state == 1) {
+                    next = temp;
+                    break;
+                }
+                temp = temp->next;
+
+            }
+        }
+    }
+    else {
+        while (temp != NULL) {
+            if (temp->state == 1) {
+                next = temp;
+                break;
+            }
+            temp = temp->next;
+
+        }
+    }
+
+
+    if (me == mainthread)
+        me->state = 2;
+    else if (me != NULL && me->state != 2)
+        me->state = 1;
+    if (next == NULL)
+        next = mainthread;
+    if (next != NULL)
+        next->state = 0;
+    currentthread = next;
+    switch_to(me, next);
+
+    /*struct PCB *me = NULL, *next = NULL, *temp;/
     __asm__ volatile("mov %rdi,%r8");
     __asm__ volatile("mov %%r8,%0":"=m"(currentthread->rdi));
     __asm__ volatile("mov %%rbx,%0":"=r"(currentthread->rbx));
@@ -193,7 +239,7 @@ void schedule() {
     if (next != NULL)
         next->state = 0;
     currentthread = next;
-    switch_to(me, next);
+    switch_to(me, next);*/
 }
 
 void context_switch() {
@@ -224,3 +270,4 @@ void switch_to_ring_3(struct PCB *tss) {
     __asm__ volatile("\t push %0\n" : "=m"(tss->gotoaddr));
     __asm__ volatile("\t iretq\n" );
 }
+

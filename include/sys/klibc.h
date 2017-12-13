@@ -14,6 +14,8 @@ char *kstrcopy(char *String1, char *String2);
 char *kstrncopy(char *String1, char *String2, int n);
 char *kstrcat(char *string1,char *string2,char *concatstr);
 void kmemcpychar(void *source, void *dest,uint64_t size);
+void itoa(int intvalue, char *string);
 #endif //COURSEPROJ_KLIBC_H
+
 
 
