@@ -227,46 +227,10 @@ uint32_t sys_waitpid(uint32_t pid, int *status) {
 }
 
 int sys_fork() {
-    //uint64_t addr=(uint64_t)*((uint64_t *)currentthread->rsp);
-    //struct filesys_tnode *temp_proc = proc_directory;
-    //int envc = 0;
-    //struct filesys_tnode *parent_node = NULL, *child_node = NULL;
+
     struct PCB *new_process = bump(sizeof(struct PCB));
     new_process = copy_process(currentthread, new_process);
     add_to_proc_list(new_process);
-
-    /*if (currentthread->pid > 2) {
-        char pid[4];
-        itoa(new_process->pid, pid);
-        for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
-            struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
-            if (kstrcmp(proc_node->name, pid) == 0) {
-                child_node = proc_node;
-                break;
-            }
-        }
-
-        char ppid[4];
-        temp_proc = proc_directory;
-        itoa(currentthread->pid, pid);
-        for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
-            struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
-            if (kstrcmp(proc_node->name, ppid) == 0) {
-                parent_node = proc_node;
-                break;
-            }
-        }
-
-        if (parent_node != NULL && child_node != NULL) {
-            for (int i = 0; parent_node->link_to_inode->envp[i] != NULL; i++) {
-                //envs[i] = (char *) ((uint64_t)envs + (50 * i));
-                kstrcopy(child_node->link_to_inode->envp[i], parent_node->link_to_inode->envp[i]);
-                envc++;
-            }
-            //envs[envc] = (char *) ((uint64_t)envs + (50 * envc));
-            kstrcopy(child_node->link_to_inode->envp[envc], "\0");
-        }
-    }*/
 
     struct pml4t *forked_table = duplicate_page_table(
             (struct pml4t *) ((uint64_t) currentthread->page_table + KERNBASE));
@@ -325,7 +289,8 @@ int sys_access(const char *pathname, int mode) {
     char concatstr[25];
     char *fullpath = kstrcat("/rootfs/", (char *) pathname, concatstr);
     if (mode == F_OK) {
-        return do_findfile(fullpath);
+        int ret_val = do_findfile(fullpath);
+        return ret_val;
     }
     return -1;
 }
@@ -465,13 +430,11 @@ void syscall_handler(void *sysaddress) {
     __asm__ volatile("\tpush %rdi\n");
     __asm__ volatile("\tpush %rsi\n");
     __asm__ volatile("\tpush %rbp\n");
-    // __asm__ volatile("\tpush %r12\n");
     __asm__ volatile( "movq %0,%%rdi"::"m"(currentthread->rdi));
     __asm__ volatile( "movq %0,%%rsi"::"m"(currentthread->rsi));
     __asm__ volatile( "movq %0,%%rdx"::"r"(currentthread->rdx));
     __asm__ volatile( "callq *%0;":"=a"(ret) :"r" (sysaddress):"rdx", "rdi", "rsi");
     __asm__ volatile("movq %0, 112(%%rsp)" : "=r" (ret));
-    //__asm__ volatile("\tpop %r12\n");
     __asm__ volatile("\tpop %rbp\n");
     __asm__ volatile("\tpop %rsi\n");
     __asm__ volatile("\tpop %rdi\n");

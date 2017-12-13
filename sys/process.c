@@ -10,6 +10,7 @@
 #include <sys/klibc.h>
 #include <sys/fs.h>
 #include <sys/syscall.h>
+#include <sys/gdt.h>
 
 void add_to_proc_list(struct PCB *process) {
     char process_name[10];
@@ -321,11 +322,9 @@ void clear_kernelstack() {
 }
 
 int do_execvpe(const char *file, char *const argv[], char *const envp[]) {
-    char filename[20], args[5][40], pid[4];
-    //char ** envs = (char**)bump(4096);
-    struct filesys_tnode *cur_node = NULL;
-    int i, argc = 0, envc = 0;
-    char *stack = NULL, *temp = NULL, *argtemp = NULL;
+    char filename[20], args[5][40], envs[5][40];
+    int i, argc = 0,envc=0;
+    char *stack = NULL, *temp = NULL, *argtemp=NULL;
     uint64_t envtemp;
     kstrcopy(filename, (char *) file);
     // memset(args,'\0', sizeof(args));
@@ -334,34 +333,19 @@ int do_execvpe(const char *file, char *const argv[], char *const envp[]) {
         argc++;
     }
     kstrcopy(args[argc], "\0");
-
-    itoa(currentthread->pid, pid);
-    struct filesys_tnode *temp_proc = proc_directory;
-    for (int j = 0; j < temp_proc->link_to_inode->num_sub_files; j++) {
-        struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[j];
-        if (kstrcmp(proc_node->name, pid) == 0) {
-            cur_node = proc_node;
-            break;
-        }
-    }
-
-    if (cur_node == NULL)
-        return -1;
     for (i = 0; envp[i] != NULL; i++) {
-        //envs[i] = (char *) ((uint64_t)envs + (50 * i));
-        kstrcopy(cur_node->link_to_inode->envp[i], envp[i]);
+        kstrcopy(envs[i], envp[i]);
         envc++;
     }
-    //envs[envc] = (char *) ((uint64_t)envs + (50 * envc));
-    kstrcopy(cur_node->link_to_inode->envp[envc], "\0");
+    kstrcopy(envs[envc], "\0");
     clear_vmas();
     clear_uptentries();
     loadelf(filename, currentthread);
     stack = (char *) currentthread->ursp;
 
     for (i = envc - 1; i >= 0; i--) {
-        stack = stack - kstrlength(cur_node->link_to_inode->envp[i]) - 1;
-        kstrcopy(stack, cur_node->link_to_inode->envp[i]);
+        stack = stack - kstrlength(envs[i]) - 1;
+        kstrcopy(stack, envs[i]);
     }
 
     //stack=stack-1;
@@ -378,7 +362,7 @@ int do_execvpe(const char *file, char *const argv[], char *const envp[]) {
     currentthread->ursp = currentthread->ursp - 8;
     *(uint64_t *) (currentthread->ursp) = 0;
     for (i = envc; i >= 1; i--) {
-        temp = (char *) (temp - kstrlength(cur_node->link_to_inode->envp[i - 1]) - 1);
+        temp = (char *) (temp - kstrlength(envs[i - 1]) - 1);
         *((uint64_t *) currentthread->ursp - (envc - i + 1)) = (uint64_t) temp;
     }
     currentthread->ursp = (uint64_t) ((uint64_t *) currentthread->ursp - envc);
@@ -395,73 +379,9 @@ int do_execvpe(const char *file, char *const argv[], char *const envp[]) {
     *((uint64_t *) currentthread->ursp - 3) = argc;
     currentthread->ursp = (uint64_t) ((uint64_t *) currentthread->ursp - 3);
     clear_kernelstack();
+    set_tss_rsp(&currentthread->kstack[KSTACKLEN - 1]);
     switch_to_ring_3(currentthread);
 
     return 0;
 }
 
-char* sys_getenv(char* name) {
-    struct filesys_tnode *temp_proc = proc_directory;
-    struct filesys_tnode *cur_node = NULL/*, *parent_node = NULL*/;
-    //char **envp = NULL;
-    //int envc = 0;
-    char pid[4];
-    itoa(currentthread->pid, pid);
-    for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
-        struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
-        if (kstrcmp(proc_node->name, pid) == 0) {
-            cur_node = proc_node;
-            break;
-        }
-    }
-    if (cur_node == NULL) {
-        return "";
-    }
-    //return "";
-    char *return_value = (char *)sys_malloc(40);
-    if (kstrcmp(name, "PATH") == 0) {
-        return_value = kstrcopy(return_value, cur_node->link_to_inode->envp[0]);
-        kprintf("%s", return_value);
-        return return_value;
-    }
-    else if (kstrcmp(name, "PS1") == 0){
-        return_value = kstrcopy(return_value, cur_node->link_to_inode->envp[1]);
-        return return_value;
-    }
-        //return "";
-        //return return_value;
-    else {
-        kprintf("Environment variable not found");
-        return "";
-    }
-}
-
-int sys_setenv(char *name, char *value) {
-    struct filesys_tnode *temp_proc = proc_directory;
-    struct filesys_tnode *cur_node = NULL;
-    //char **envp = NULL;
-    char pid[4];
-    itoa(currentthread->ppid, pid);
-    for (int i = 0; i < temp_proc->link_to_inode->num_sub_files; i++) {
-        struct filesys_tnode *proc_node = &temp_proc->link_to_inode->sub_files_list[i];
-        if (kstrcmp(proc_node->name, pid) == 0) {
-            cur_node = proc_node;
-            break;
-        }
-    }
-    if (cur_node == NULL)
-        return -1;
-    //envp = cur_node->link_to_inode->envp;
-    if (kstrcmp(name, "PATH") == 0) {
-        kstrcopy(cur_node->link_to_inode->envp[0], value);
-        return 0;
-    }
-    else if (kstrcmp(name, "PS1") == 0){
-        kstrcopy(cur_node->link_to_inode->envp[1], value);
-        return 0;
-    }
-    else {
-        kprintf("Environment variable not found");
-        return -1;
-    }
-}

@@ -6,10 +6,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #define BIN "bin/"
-void bg_fg_process(char **command, char *envp[])
+void bg_fg_process(char **command)
 {
     int status,commandc;
-    //char *env[]={"/rootfs/bin/",NULL};
+    char *env[]={"/rootfs/bin/",NULL};
     char *filename = 0;
     char concatstr[20];
     pid_t pid;
@@ -42,7 +42,7 @@ void bg_fg_process(char **command, char *envp[])
 
         }
         else {
-            execvpe(filename,(char * const *)command,(char * const *)envp);
+            execvpe(filename,(char * const *)command,(char * const *)env);
         }
 
 
@@ -143,7 +143,7 @@ int main(int argc, char *argv[],char *envp[])
         //pid=fork();
         // if(pid==0)
         //{
-        bg_fg_process(split, envp);
+        bg_fg_process(split);
         // write(1,"hey",5);
         //  exit(0);
 

@@ -9,7 +9,7 @@
 #include <sys/syscall.h>
 
 struct filesys_tnode *
-find_file_from_root(struct filesys_tnode *current_node, char file_name[10][256], int depth, int total_depth) {
+find_file_from_root(struct filesys_tnode *current_node, char file_name[6][10], int depth, int total_depth) {
     struct filesys_node *current_inode = current_node->link_to_inode;
     struct filesys_tnode *ret;
     if (kstrcmp(current_node->name, file_name[depth]) == 0) {
@@ -49,7 +49,7 @@ find_file_from_root(struct filesys_tnode *current_node, char file_name[10][256],
 struct filesys_tnode *find_file(char *file_name) {
     if (file_name[0] == '/') {
         // Search from root
-        char sub_name[10][256];
+        char sub_name[6][10];
         int i = 0, j = 0, k = 0, len = 0;
         len = kstrlength(file_name);
         for (i = 0, j = 0, k = 0; i < len; i++, j++) {
@@ -59,7 +59,7 @@ struct filesys_tnode *find_file(char *file_name) {
                 if (i != len - 1) {
                     k++;
                     j = -1;
-                    memset(sub_name[k], 0, 256);
+                    memset(sub_name[k], 0, 10);
                 }
 
             }

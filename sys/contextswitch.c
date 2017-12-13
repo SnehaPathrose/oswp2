@@ -209,37 +209,6 @@ void schedule() {
         next->state = 0;
     currentthread = next;
     switch_to(me, next);
-
-    /*struct PCB *me = NULL, *next = NULL, *temp;/
-    __asm__ volatile("mov %rdi,%r8");
-    __asm__ volatile("mov %%r8,%0":"=m"(currentthread->rdi));
-    __asm__ volatile("mov %%rbx,%0":"=r"(currentthread->rbx));
-    __asm__ volatile("mov %%rcx,%0":"=r"(currentthread->rcx));
-    __asm__ volatile("mov %%rbp,%0":"=r"(currentthread->rbp));
-    __asm__ volatile("mov %%rsi,%0":"=r"(currentthread->rsi));
-    __asm__ volatile("mov %%rdx,%0":"=r"(currentthread->rdx));
-    me = currentthread;
-    temp = threadlist;
-    while (temp != NULL) {
-        if (temp->state == 1) {
-            next = temp;
-            break;
-        }
-        temp = temp->next;
-
-    }
-
-
-    if (me == mainthread)
-        me->state = 2;
-    else if (me != NULL && me->state != 2)
-        me->state = 1;
-    if (next == NULL)
-        next = mainthread;
-    if (next != NULL)
-        next->state = 0;
-    currentthread = next;
-    switch_to(me, next);*/
 }
 
 void context_switch() {

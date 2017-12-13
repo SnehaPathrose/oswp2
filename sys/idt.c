@@ -48,8 +48,7 @@ static void *syscalls[MAXSYSCALLS] =
                 &sys_write, &sys_getpid, &sys_malloc, &sys_getcwd, &sys_opendir,
                 &sys_readdir, &sys_closedir, &sys_execvpe, &sys_fork, &sys_exit,
                 &sys_read, &sys_waitpid, &sys_access, &sys_open, &sys_close,
-                &sys_sleep, &sys_kill, &sys_chdir, &sys_free, &sys_setenv,
-                &sys_getenv, &sys_getppid
+                &sys_sleep, &sys_kill, &sys_chdir, &sys_free, &sys_getppid
         };
 
 /*

@@ -6,10 +6,10 @@
 
 
 //function to run background/foreground process
-void bg_fg_process(char **command, char *envp[])
+void bg_fg_process(char **command)
 {
     int status,commandc;
-    //char *env[]={"/rootfs/bin/",NULL};
+    char *env[]={"/rootfs/bin/",NULL};
     char *filename = 0;
     char concatstr[20];
     pid_t pid;
@@ -42,7 +42,7 @@ void bg_fg_process(char **command, char *envp[])
 
         }
         else {
-            execvpe(filename,(char * const *)command,(char * const *)envp);
+            execvpe(filename,(char * const *)command,(char * const *)env);
         }
 
 
@@ -66,7 +66,7 @@ void bg_fg_process(char **command, char *envp[])
 
 
 //function to map the command in the input string to its execution
-void mapFunction(char *inputString, char *envp[]) {
+void mapFunction(char *inputString) {
     char **tokens;
     //char token[5][25];
     //char *t[5]={token[0],token[1],token[2],token[3],token[4]};
@@ -91,23 +91,23 @@ void mapFunction(char *inputString, char *envp[]) {
     else*/
 
     //other commands
-    bg_fg_process(tokens, envp);
+    bg_fg_process(tokens);
 
 }
 
 int main(int argc, char *argv[], char *envp[]) {
-    char *sbush_string = getenv("PS1");
-    write(1, sbush_string, 7);
-    //write(1,"sbush> ",7);
+    //char *sbush_string = getenv("PS1");
+    //write(1, sbush_string, 7);
+    write(1,"sbush> ",7);
     char inp[50], *stringInput;
     stringInput = inp;
     stringInput = gets(stringInput);
     while (strcmp(stringInput, "exit\n") != 0) {
         trim(stringInput);
-        mapFunction(stringInput, envp);
+        mapFunction(stringInput);
         umemset(stringInput, 0, strlen(stringInput));
-        sbush_string = getenv("PS1");
-        write(1, sbush_string, strlen(sbush_string));
+        //sbush_string = getenv("PS1");
+        write(1,"sbush> ",7);
         stringInput = gets(stringInput);
     }
     write(1, "After everything", 16);
