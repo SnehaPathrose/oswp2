@@ -212,7 +212,7 @@ void interrupt1() {
  */
 void interrupt2() {
     kprintf("interrupt2");
-
+    on_completion_pointer();
     while (1);
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20));
     __asm__( "\tiretq\n");
@@ -276,6 +276,7 @@ void interrupt_syscall() {
 
 void interrupt5() {
     kprintf("General Protection Fault\n");
+    on_completion_pointer();
     while (1);
     __asm__ volatile ( "out %0, %1" : : "a"(0x20), "Nd"(0x20));
     __asm__( "\tiretq\n");

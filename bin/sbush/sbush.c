@@ -98,17 +98,21 @@ void mapFunction(char *inputString) {
 int main(int argc, char *argv[], char *envp[]) {
     //char *sbush_string = getenv("PS1");
     //write(1, sbush_string, 7);
-    write(1,"sbush> ",7);
+
     char inp[50], *stringInput;
     stringInput = inp;
-    stringInput = gets(stringInput);
+    stringInput[0] = 'e';
+    stringInput[1] = '\0';
+
     while (strcmp(stringInput, "exit\n") != 0) {
-        trim(stringInput);
-        mapFunction(stringInput);
         umemset(stringInput, 0, strlen(stringInput));
-        //sbush_string = getenv("PS1");
         write(1,"sbush> ",7);
         stringInput = gets(stringInput);
+        if (strcmp(stringInput, "\n") == 0) {
+            continue;
+        }
+        trim(stringInput);
+        mapFunction(stringInput);
     }
     write(1, "After everything", 16);
     return 1;
