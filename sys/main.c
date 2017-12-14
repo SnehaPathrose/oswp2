@@ -58,6 +58,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
     threadlist = mainthread;
     mainthread->next = NULL;
     mainthread->state = 0;
+    mainthread->totalslice=1;
     mainthread->page_table = (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
     currentthread = mainthread;
     initialise_file_system();
@@ -81,9 +82,10 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
     *temp2 = ':';
 
     checkbus();*/
-    while (1) {
+    while (1);
+    /*{
         schedule();
-    }
+    }*/
 }
 
 void boot(void) {

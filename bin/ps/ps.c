@@ -14,18 +14,20 @@ int main(int argc, char* argv[],char *envp[]) {
     directory=opendir("/proc/");
     if(directory>0)
     {
-        write(1, "PID  PPID  STATUS     NAME\n", 27);
+        write(1, "PID PPID STATUS NAME\n", 21);
         while(1) {
             files = readdir(directory);
             if (files != NULL) {
-                char pid[5], ppid[5];
-                int i = 0, intvalue = files->pid;
+                char pid[5], ppid[5], t[5];
+                int i = 0,j=0,k=0, intvalue = files->pid;
                 while(intvalue!=0)
                 {
-                    pid[i++] = intvalue % 10 + '0';
+                    t[i++] = intvalue % 10 + '0';
                     intvalue = intvalue / 10;
                 }
-                pid[i] = '\0';
+                for(j=i-1;j>=0;j--)
+                    pid[k++]=t[j];
+                pid[k] = '\0';
 
                 if (files->ppid == 0) {
                     ppid[0] = '0';
@@ -33,27 +35,31 @@ int main(int argc, char* argv[],char *envp[]) {
                 }
                 else {
                     i = 0, intvalue = files->ppid;
+                    k=0;
                     while(intvalue!=0)
                     {
-                        ppid[i++] = intvalue % 10 + '0';
+                        t[i++] = intvalue % 10 + '0';
                         intvalue = intvalue / 10;
                     }
-                    ppid[i] = '\0';
+                    for(j=i-1;j>=0;j--)
+                        ppid[k++]=t[j];
+                    ppid[k] = '\0';
                 }
                 if(files->state == 2) {
                     continue;
                 }
                 write(1, pid, strlen(pid));
-                write(1, "    ", 4);
+                putchar(' ');
                 write(1, ppid, strlen(ppid));
-                write(1, "     ", 5);
+                putchar(' ');
                 if (files->state == 0)
-                    write(1, "RUNNING ", 8);
+                    write(1, "RUNNING", 7);
                 else if (files->state == 1)
                     write(1, "SLEEPING", 8);
                 else if (files->state == 2)
-                    write(1, "ZOMBIE  ", 8);
-                write(1, "   ", 3);
+                    write(1, "ZOMBIE", 6);
+                //write(1, "\t", 1);
+                putchar(' ');
                 write(1, files->d_name, strlen(files->d_name));
 
                 write(1, "\n", 1);

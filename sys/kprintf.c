@@ -157,7 +157,9 @@ void kprintf(const char *fmt, ...) {
 
         } else if (*fmt == '\r') {
             outputstring -= length;
-        } else {
+        } else if (*fmt == '\t') {
+            outputstring += 8;
+        }else {
             *outputstring = *fmt;
         }
     }

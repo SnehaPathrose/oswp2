@@ -33,10 +33,10 @@ struct filesys_node {
 };
 
 struct filesys_tnode {
-    char name[256];
+    char name[10];
     uint64_t size;
     struct filesys_node *link_to_inode;
-}*file_descriptors[100], *filefs_root, *proc_directory;
+}*file_descriptors[25], *filefs_root, *proc_directory;
 
 
 #define NAME_MAX 25
@@ -58,7 +58,7 @@ struct filesys_tnode* find_file(char* file_name);
 int do_open(char *file_name);
 int read_vfs(struct filesys_tnode *node, char *buf, int size);
 int write_vfs(struct filesys_tnode *node, char *buf, int size, int offset);
-struct filesys_tnode * create_t_node(char name[256]);
+struct filesys_tnode * create_t_node(char name[10]);
 void initialise_file_system();
 int check_for_ip(char *ab, int size_ip, uint64_t position);
 

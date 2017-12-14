@@ -234,15 +234,18 @@ int sys_fork() {
 
     struct pml4t *forked_table = duplicate_page_table(
             (struct pml4t *) ((uint64_t) currentthread->page_table + KERNBASE));
-    flush_tlb();
+
     new_process->page_table = (struct pml4t *) ((uint64_t) forked_table - KERNBASE);
-    //uint64_t r12value = 0;
+
     __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(currentthread->rsp));
-    //__asm__ volatile("mov %%r12,%0":"=r"(r12value));
+
     currentthread->rsp = currentthread->rsp + 24;
+    uint64_t r12value = 0;
+    __asm__ volatile("mov %%r12,%0":"=r"(r12value));
+    flush_tlb();
     new_process->rsp = (uint64_t) &new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) /8)];
 
-    //*(uint64_t *)(new_process->rsp+144)=new_process->ursp;
+    //*(uint64_t *)(new_process->rsp+144)=new_process->ursp
     new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
                         1] = 0x0;
     new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
@@ -257,11 +260,11 @@ int sys_fork() {
                         6] = 0x0;
     new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
                         7] = 0x0;
-    /*new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
-                        8] = r12value;*/
+    new_process->kstack[KSTACKLEN - 1 - (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] - currentthread->rsp) / 8) -
+                        8] = r12value;
     new_process->rsp = (uint64_t) &new_process->kstack[KSTACKLEN - 1 -
                                                        (((uint64_t) &currentthread->kstack[KSTACKLEN - 1] -
-                                                         currentthread->rsp) / 8) - 7];
+                                                         currentthread->rsp) / 8) - 8];
 
     // __asm volatile("movq %0, 168(%%rsp)" : "=r" (new_process->ursp));
     struct PCB *temp = currentthread->next;
@@ -430,11 +433,13 @@ void syscall_handler(void *sysaddress) {
     __asm__ volatile("\tpush %rdi\n");
     __asm__ volatile("\tpush %rsi\n");
     __asm__ volatile("\tpush %rbp\n");
+    __asm__ volatile("\tpush %r12\n");
     __asm__ volatile( "movq %0,%%rdi"::"m"(currentthread->rdi));
     __asm__ volatile( "movq %0,%%rsi"::"m"(currentthread->rsi));
     __asm__ volatile( "movq %0,%%rdx"::"r"(currentthread->rdx));
     __asm__ volatile( "callq *%0;":"=a"(ret) :"r" (sysaddress):"rdx", "rdi", "rsi");
-    __asm__ volatile("movq %0, 112(%%rsp)" : "=r" (ret));
+    __asm__ volatile("movq %0, 128(%%rsp)" : "=r" (ret));
+    __asm__ volatile("\tpop %r12\n");
     __asm__ volatile("\tpop %rbp\n");
     __asm__ volatile("\tpop %rsi\n");
     __asm__ volatile("\tpop %rdi\n");

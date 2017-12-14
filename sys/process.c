@@ -13,13 +13,15 @@
 #include <sys/gdt.h>
 
 void add_to_proc_list(struct PCB *process) {
-    char process_name[10];
-    int i = 0, intvalue = process->pid;
+    char process_name[3],temp[3];
+    int i = 0,k=0, intvalue = process->pid;
     while (intvalue != 0) {
-        process_name[i++] = intvalue % 10 + '0';
+        temp[i++] = intvalue % 10 + '0';
         intvalue = intvalue / 10;
     }
-    process_name[i] = '\0';
+    for(int j=i-1;j>=0;j--)
+        process_name[k++]=temp[j];
+    process_name[k] = '\0';
     struct filesys_tnode *process_node = create_t_node(process_name);
     process_node->link_to_inode->link_to_process = process;
     //kprintf("Num of subfiles: %d", proc_directory->link_to_inode->num_sub_files);
@@ -54,6 +56,7 @@ void user_process() {
         processcount++;
         process->pid = processcount;
         process->ppid = 0;
+        process->totalslice=MAXSLICE;
         add_to_proc_list(process);
         flush_tlb();
         switch_to_ring_3(process);
@@ -66,6 +69,8 @@ struct PCB *copy_process(struct PCB *current_process, struct PCB *new_process) {
         new_process->kstack[i] = current_process->kstack[i];
     kstrcopy(new_process->cwd, current_process->cwd);
     new_process->state = 1;
+    new_process->totalslice=current_process->totalslice/2;
+    current_process->totalslice=current_process->totalslice/2;
 
     new_process->mm = bump(sizeof(struct mm_struct));
     //map_address((uint64_t) new_process->mm, (uint64_t) ((uint64_t) new_process->mm - KERNBASE));

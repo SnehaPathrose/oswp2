@@ -4,6 +4,7 @@
 
 #ifndef COURSEPROJ_PROCESS_H
 #define COURSEPROJ_PROCESS_H
+#define MAXSLICE 8
 #include <sys/defs.h>
 typedef union m_header{
     struct{

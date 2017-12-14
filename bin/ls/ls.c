@@ -31,7 +31,8 @@ int main(int argc, char* argv[],char *envp[]) {
             files = readdir(directory);
             if (files != NULL) {
                 write(1, files->d_name, strlen(files->d_name));
-                write(1, "  ", 2);
+                putchar(' ');
+                //write(1, " ", 2);
             }
             else
                 break;

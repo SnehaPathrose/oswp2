@@ -135,7 +135,7 @@ int do_dopen(char *file_name) {
         kprintf("\n File not found");
         return -1;
     }
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 25; i++) {
         if (file_descriptors[i] == NULL) {
             file_descriptors[i] = item;
             return i;
@@ -153,7 +153,7 @@ int do_fopen(char *file_name) {
     struct filesys_tnode *copyitem;
     copyitem = copytnode(item);
 
-    for (int i = 3; i < 100; i++) {
+    for (int i = 3; i < 25; i++) {
         if (file_descriptors[i] == NULL) {
             file_descriptors[i] = copyitem;
             return i;
@@ -222,7 +222,7 @@ struct dirent *do_readdir(DIR *dir) {
 }
 
 int do_closedir(DIR *dirp) {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 25; i++) {
         if (i == dirp->fd) {
             file_descriptors[i] = 0;
             //free dirp pointer as well
@@ -238,7 +238,7 @@ int do_closedir(DIR *dirp) {
 }
 
 int do_close(int fd) {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 25; i++) {
         if (i == fd) {
             file_descriptors[i] = 0;
             return 0;
@@ -318,7 +318,7 @@ struct filesys_node *create_sys_node() {
     return current_node;
 }
 
-struct filesys_tnode *create_t_node(char name[256]) {
+struct filesys_tnode *create_t_node(char name[10]) {
     struct filesys_tnode *current_node = bump(sizeof(struct filesys_tnode));
     int i = 0;
     for (i = 0; i < kstrlength(name); i++) {
@@ -394,14 +394,14 @@ void load_tarfs(struct filesys_tnode *current_node) {
     while (tarfs->name[0] != '\0') {
         active_node = current_node;
         size = get_size(tarfs->size);
-        char sub_name[10][256];
+        char sub_name[6][10];
         int i = 0, j = 0, k = 0;
         for (i = 0, j = 0, k = 0; i < kstrlength(tarfs->name); i++, j++) {
             sub_name[k][j] = tarfs->name[i];
             if (tarfs->name[i] == '/') {
                 sub_name[k][j + 1] = '\0';
                 k++;
-                memset(sub_name[k], 0, 256);
+                memset(sub_name[k], 0, 10);
                 j = -1;
             }
         }

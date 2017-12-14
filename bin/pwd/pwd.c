@@ -15,6 +15,7 @@ int main(int argc, char* argv[],char *envp[]) {
     //struct dirent *files/*= (struct dirent *)malloc(5*sizeof(struct dirent))*/;
     char *cwd;
     cwd=getcwd(buf,20);
-    puts(cwd);
+    write(1,cwd,strlen(cwd));
+    write(1,"\n",1);
     return 0;
 }

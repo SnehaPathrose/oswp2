@@ -31,10 +31,10 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t push %0\n" : "=m"(me->rdx));
         __asm__ volatile("\t push %0\n" : "=m"(me->rdi));
         __asm__ volatile("\t push %0\n" : "=m"(me->rsi));
-        //__asm__ volatile("\t push %r12\n");
+        __asm__ volatile("\t push %r12\n");
         __asm__ volatile("\t mov %%rsp,%0\n" : "=m"(me->rsp));
         __asm__ volatile("\t mov %0, %%rsp\n" : "=m"(next->rsp));
-        //__asm__ volatile("\t pop %r12\n");
+        __asm__ volatile("\t pop %r12\n");
         __asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rdi\n");
         __asm__ volatile("\t pop %rdx\n");
@@ -42,10 +42,11 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t pop %rbx\n");
         __asm__ volatile("\t pop %rbp\n");
         __asm__ volatile("\t pop %rax\n");
+        __asm__ volatile("\t sti\n" );
         __asm__ volatile("\t ret\n" );
     } else {
         __asm__ volatile("\t mov %0, %%rsp\n" : "=m"(next->rsp));
-        // __asm__ volatile("\t pop %r12\n");
+         __asm__ volatile("\t pop %r12\n");
         __asm__ volatile("\t pop %rsi\n");
         __asm__ volatile("\t pop %rdi\n");
         __asm__ volatile("\t pop %rdx\n");
@@ -53,19 +54,22 @@ void switch_to(struct PCB *me, struct PCB *next) {
         __asm__ volatile("\t pop %rbx\n");
         __asm__ volatile("\t pop %rbp\n");
         __asm__ volatile("\t pop %rax\n");
+        __asm__ volatile("\t sti\n" );
         __asm__ volatile("\t ret\n" );
     }
 }
 
 
 void idle_func() {
-    while (1) {
+    while (1)
+    {
         schedule();
-    };
+    }
 }
 
 void thread_on_completion() {
     struct PCB *temp = NULL, *temp_list = blockedlist, *temp2 = NULL, *another_child = NULL, *next = NULL, *parent = NULL, *childnext = NULL/*, *prev_parent*/;
+    struct PCB *temp1=NULL;
     temp = threadlist;
     while (temp != NULL) {
         if (temp->state == 0) {
@@ -76,6 +80,25 @@ void thread_on_completion() {
         temp = temp->next;
         next = temp->next;
 
+    }
+
+    temp1=threadlist;
+    while(temp1!=NULL)
+    {
+        if(currentthread->ppid==temp1->pid)
+        {
+            temp1->totalslice+=currentthread->totalslice;
+        }
+        temp1=temp1->next;
+    }
+    temp1=blockedlist;
+    while(temp1!=NULL)
+    {
+        if(currentthread->ppid==temp1->pid)
+        {
+            temp1->totalslice+=currentthread->totalslice;
+        }
+        temp1=temp1->next;
     }
 
     if (temp != NULL && temp->ppid > 0 && temp->is_wait == 1) {
@@ -120,7 +143,8 @@ void thread_on_completion() {
         }
     }
     __asm__ volatile("\t sti\n" );
-    schedule();
+    //schedule();
+    while(1);
 }
 
 struct PCB *create_thread(uint64_t faddr) {
@@ -131,10 +155,11 @@ struct PCB *create_thread(uint64_t faddr) {
     void (*retfun)() = &thread_on_completion;
     thread->gotoaddr = faddr;
     thread->next = NULL;
+    thread->totalslice=1;
     thread->state = 1;
     thread->kstack[KSTACKLEN - 1] = (uint64_t) retfun;
     thread->kstack[KSTACKLEN - 2] = faddr;
-    thread->rsp = (uint64_t) &(thread->kstack[KSTACKLEN - 9]);
+    thread->rsp = (uint64_t) &(thread->kstack[KSTACKLEN - 10]);
     thread->page_table = (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
     struct PCB *temp = threadlist;
     while (temp->next != NULL)
@@ -153,6 +178,7 @@ void fun1() {
 
 
 void schedule() {
+    __asm__ volatile("\t cli\n" );
     struct PCB *me = NULL, *next = NULL, *temp;
 
     __asm__ volatile("mov %rdi,%r8");
@@ -161,7 +187,7 @@ void schedule() {
     __asm__ volatile("mov %%rcx,%0":"=r"(currentthread->rcx));
     __asm__ volatile("mov %%rbp,%0":"=r"(currentthread->rbp));
     __asm__ volatile("mov %%rsi,%0":"=r"(currentthread->rsi));
-    //__asm__ volatile("mov %%r12,%0":"=r"(currentthread->r12));
+    __asm__ volatile("mov %%r12,%0":"=r"(currentthread->r12));
     __asm__ volatile("mov %%rdx,%0":"=r"(currentthread->rdx));
     me = currentthread;
     temp = threadlist;

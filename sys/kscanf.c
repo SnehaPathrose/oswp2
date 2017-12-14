@@ -44,7 +44,8 @@ void initialize_keyboard_buffer() {
 }
 
 int get_terminal_size() {
-    return kstrlength(terminal_buf);
+    int k=kstrlength(terminal_buf);
+    return k;
 }
 
 void reset_terminal() {

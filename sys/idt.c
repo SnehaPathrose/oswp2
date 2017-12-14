@@ -136,10 +136,16 @@ void interrupt0() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %r8\n");
     __asm__("\tpush %r9\n");
-    //__asm__("\tpush %r12\n");
+    __asm__("\tpush %r12\n");
     handletime();
+    currentthread->elapsed++;
+    if(currentthread->elapsed>=currentthread->totalslice)
+    {
+        currentthread->elapsed=0;
+        schedule();
+    }
     // get the saved registers
-    //__asm__("\tpop %r12\n");
+    __asm__("\tpop %r12\n");
     __asm__("\tpop %r9\n");
     __asm__("\tpop %r8\n");
     __asm__("\tpop %rdi\n");
@@ -178,9 +184,9 @@ void interrupt1() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %r8\n");
     __asm__("\tpush %r9\n");
-    //__asm__("\tpush %r12\n");
+    __asm__("\tpush %r12\n");
     kscanf(keyscancode);
-    //__asm__("\tpop %r12\n");
+    __asm__("\tpop %r12\n");
     __asm__("\tpop %r9\n");
     __asm__("\tpop %r8\n");
     __asm__("\tpop %rdi\n");
@@ -237,19 +243,19 @@ void interrupt_syscall() {
     __asm__("\tpush %rdi\n");
     __asm__("\tpush %rsi\n");
     __asm__("\tpush %rbp\n");
-    //__asm__("\tpush %r12\n");
-    __asm volatile("movq 88(%%rsp), %0" : "=g" (currentthread->ursp));
-    __asm__ volatile("movq 48(%%rsp), %0": "=r"(currentthread->rax));
-    __asm__ volatile("movq 24(%%rsp),%0": "=r"(currentthread->rdx));
-    __asm__ volatile("movq 8(%%rsp),%0": "=r"(currentthread->rsi));
-    __asm__ volatile("movq 16(%%rsp),%0": "=r"(currentthread->rdi));
+    __asm__("\tpush %r12\n");
+    __asm volatile("movq 96(%%rsp), %0" : "=g" (currentthread->ursp));
+    __asm__ volatile("movq 56(%%rsp), %0": "=r"(currentthread->rax));
+    __asm__ volatile("movq 32(%%rsp),%0": "=r"(currentthread->rdx));
+    __asm__ volatile("movq 16(%%rsp),%0": "=r"(currentthread->rsi));
+    __asm__ volatile("movq 24(%%rsp),%0": "=r"(currentthread->rdi));
     void *sysaddress = (void *) syscalls[currentthread->rax];
 
     syscall_handler(sysaddress);
-    schedule();
+    //schedule();
     //__asm__ volatile ( "callq %0;"::"r" (&syscall_handler):"rdx");
     // get the saved registers
-    //__asm__("\tpop %r12\n");
+    __asm__("\tpop %r12\n");
     __asm__("\tpop %rbp\n");
     __asm__("\tpop %rsi\n");
     __asm__("\tpop %rdi\n");
@@ -304,7 +310,7 @@ void interrupt4() {
     __asm__ volatile ( "pushq %rsi ");
     __asm__ volatile ( "pushq %r8 ");
     __asm__ volatile ( "pushq %r9 ");
-    //__asm__ volatile ( "pushq %r12 ");
+    __asm__ volatile ( "pushq %r12 ");
     __asm__ volatile("mov %%rsp,%0":"=r"(currentthread->rsp));
     uint64_t *arg1 = 0;
     __asm__ volatile ("movq %%cr2, %0;" :"=a"(arg1));
@@ -398,7 +404,7 @@ void interrupt4() {
      }*/
     //__asm__ volatile ( "popq %r9 ");
     //__asm__ volatile ( "popq %r9 ");
-    //__asm__ volatile ( "popq %r12 ");
+    __asm__ volatile ( "popq %r12 ");
     __asm__ volatile ( "popq %r9 ");
     __asm__ volatile ( "popq %r8 ");
     __asm__ volatile ( "popq %rsi ");

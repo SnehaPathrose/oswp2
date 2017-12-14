@@ -44,6 +44,8 @@ struct PCB {
     //int exit_status;
     struct PCB *child_process;
     struct PCB *next;
+    int elapsed;
+    int totalslice;
     // struct PCB *parent;
     uint64_t gotoaddr;
     struct pml4t *page_table;
@@ -54,7 +56,7 @@ struct PCB {
     uint64_t rsi;
     uint64_t rcx;
     uint64_t rbp;
-    //uint64_t r12;
+    uint64_t r12;
     char cwd[25];
     char name[25];
 };
