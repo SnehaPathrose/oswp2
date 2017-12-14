@@ -44,12 +44,13 @@ static long mscount = 0; // count in timer frequency
 static long tcount = 0;
 
 static void *syscalls[MAXSYSCALLS] =
-        {
-                &sys_write, &sys_getpid, &sys_malloc, &sys_getcwd, &sys_opendir,
-                &sys_readdir, &sys_closedir, &sys_execvpe, &sys_fork, &sys_exit,
-                &sys_read, &sys_waitpid, &sys_access, &sys_open, &sys_close,
-                &sys_sleep, &sys_kill, &sys_chdir, &sys_free, &sys_getppid
-        };
+    {
+        &sys_write, &sys_getpid, &sys_malloc, &sys_getcwd, &sys_opendir,
+        &sys_readdir, &sys_closedir, &sys_execvpe, &sys_fork, &sys_exit,
+        &sys_read, &sys_waitpid, &sys_access, &sys_open, &sys_close,
+        &sys_sleep, &sys_kill, &sys_chdir, &sys_free, &sys_getppid,
+        &sys_unlink
+    };
 
 /*
  * Function:  handletime
@@ -252,7 +253,7 @@ void interrupt_syscall() {
     void *sysaddress = (void *) syscalls[currentthread->rax];
 
     syscall_handler(sysaddress);
-    //schedule();
+    schedule();
     //__asm__ volatile ( "callq %0;"::"r" (&syscall_handler):"rdx");
     // get the saved registers
     __asm__("\tpop %r12\n");

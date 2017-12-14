@@ -8,8 +8,6 @@ void exit(int status);
 
 void *malloc(size_t size);
 void free(void *ptr);
-int setenv(const char *name, const char *value);
-char *getenv(const char *name);
 
 #endif
 

@@ -29,9 +29,7 @@ int sys_open(const char *pathname, int flags);
 int sys_close(int fd);
 unsigned int sys_sleep(unsigned int seconds);
 int sys_chdir(const char *path);
-char *sys_getenv(char *name);
-int sys_setenv(char *name, char *value);
-void initialise_syscalls();
+int sys_unlink(const char* pathname);
 
 //const void  *syscalls[MAXSYSCALLS];
 #endif //COURSEPROJ_SYSCALL_H

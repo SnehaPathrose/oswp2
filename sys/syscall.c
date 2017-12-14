@@ -12,30 +12,6 @@
 #include <sys/idt.h>
 
 
-void initialise_syscalls() {
-    /*syscalls[0] = &sys_write;
-    syscalls[1] = &sys_getpid;
-    syscalls[2] = &sys_malloc;
-    syscalls[3] = &sys_getcwd;
-    syscalls[4] = &sys_opendir;
-    syscalls[5] = &sys_readdir;
-    syscalls[6] = &sys_closedir;
-    syscalls[7] = &sys_execvpe;
-    syscalls[8] = &sys_fork;
-    syscalls[9] = &sys_exit;
-    syscalls[10] = &sys_read;
-    syscalls[11] = &sys_waitpid;
-    syscalls[12] = &sys_access;
-    syscalls[13] = &sys_open;
-    syscalls[14] = &sys_close;
-    syscalls[15] = &sys_sleep;
-    syscalls[16] = &sys_kill;
-    syscalls[17] = &sys_chdir;
-    syscalls[18] = &sys_free;
-    syscalls[19] = &sys_setenv;
-    syscalls[20] = &sys_getenv;*/
-}
-
 pid_t sys_getpid() {
     pid_t pid = currentthread->pid;
     return pid;
@@ -422,6 +398,8 @@ int sys_kill(uint32_t pid, int sig) {
     }
     return 0;
 }
+
+
 
 void syscall_handler(void *sysaddress) {
     uint64_t ret;

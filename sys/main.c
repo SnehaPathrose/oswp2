@@ -25,9 +25,9 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
     for (smap = (struct smap_t *) (modulep + 2);
          smap < (struct smap_t *) ((char *) modulep + modulep[1] + 2 * 4); ++smap) {
         if (smap->type == 1 /* memory */ && smap->length != 0) {
-            //kprintf("smaplength is %x, smapbase is %x\n", smap->length,
-            //smap->base);
-            //kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);
+            /*kprintf("smaplength is %x, smapbase is %x\n", smap->length,
+            smap->base);
+            kprintf("Available Physical Memory [%p-%p]\n", smap->base, smap->base + smap->length);*/
 
             if ((uint64_t) physfree > smap->base && (uint64_t) physfree < (smap->base + smap->length))
                 physend = smap->base + smap->length;
@@ -43,7 +43,6 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
         pml4t_t->PML4Entry[i].page_value = 0x0;
     }
     init_paging(physfree);
-    //kprintf("Current unallocated %x", get_unallocated());
     uint64_t pml4t_t_phy = (uint64_t) pml4t_t - KERNBASE;
     __asm volatile("mov %0, %%cr3"::"r"(pml4t_t_phy));
     __asm__("\t mov %cr0,%rax\n" );
@@ -62,7 +61,7 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
     mainthread->page_table = (struct pml4t *) ((uint64_t) pml4t_t - KERNBASE);
     currentthread = mainthread;
     initialise_file_system();
-    initialise_syscalls();
+    //initialise_syscalls();
     context_switch();
     //checkbus();
     /*for(
@@ -82,10 +81,10 @@ void start(uint32_t *modulep, void *physbase, void *physfree) {
     *temp2 = ':';
 
     checkbus();*/
-    while (1);
-    /*{
-        schedule();
-    }*/
+    while (1)
+    {
+        //schedule();
+    };
 }
 
 void boot(void) {

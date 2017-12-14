@@ -82,13 +82,20 @@ void loadelf(char *filename, struct PCB *p1) {
                 vma->vma_file->bss_size = phdr->p_memsz - phdr->p_filesz;
             }
             uint64_t sizetocopy;
-            if (phdr->p_memsz > 4096) {
+            /*if (phdr->p_memsz > 4096) {
                 kprintf("\nELF file too long\n");
                 while (1);
-            }
+            }*/
+            //kprintf("%d", phdr->p_memsz);
+            phy = (uint64_t) bump_physical(phdr->p_memsz);
+            addr = phdr->p_vaddr;
+            map_user_address(addr, phy, (int)phdr->p_memsz, (struct pml4t *) ((uint64_t) p1->page_table + KERNBASE), 0x07);
             for (addr = phdr->p_vaddr, i = 0; addr < phdr->p_vaddr + phdr->p_memsz; addr += 4096, i += 4096) {
-                phy = (uint64_t) bump_physical(4096);
-                map_user_address(addr, phy, 4096, (struct pml4t *) ((uint64_t) p1->page_table + KERNBASE), 0x07);
+                //kprintf("%x", addr);
+
+                //phy = (uint64_t) bump_physical(4096);
+                //kprintf("%x", phy);
+                //map_user_address(addr, phy, 4096, (struct pml4t *) ((uint64_t) p1->page_table + KERNBASE), 0x07);
                 if ((phdr->p_memsz - i) > 4096)
                     sizetocopy = 4096;
                 else

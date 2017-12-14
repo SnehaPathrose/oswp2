@@ -125,41 +125,6 @@ char  **tokenize(char *string)
     return tokens;
 }
 
-//function to split the input string to tokens
-char  **tokenize_path(char *string)
-{
-    char **tokens=(char **)malloc(5*sizeof(char *));
-    umemset((void *)tokens,0,5);
-    int i = 0, j =0;
-    tokens[j]=(char *)malloc(40*sizeof(char));
-    // for(int l=0;l<5;l++)
-    for(int k = 0; k < 40; k++) {
-        tokens[j][k] = '\0';
-    }
-    while(*string != '\0')
-    {
-        if ((*string != ':') && (*string!='\n') )
-        {
-            *(*(tokens+j)+i) = *string;
-            i++;
-        }
-        else
-        {
-            j++;
-            if(*(string+1)!='\0') {
-                tokens[j] = (char *) malloc(40 * sizeof(char));
-                for(int k = 0; k < 40; k++) {
-                    tokens[j][k] = '\0';
-                }
-            }
-            i = 0;
-        }
-        string++;
-    }
-    //tokens[j][i] = '\0';
-    return tokens;
-}
-
 /*void memcpychar(void *source, void *dest,uint64_t size)
 {
     unsigned char *us =source;

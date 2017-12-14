@@ -45,9 +45,9 @@ int main(int argc, char* argv[],char *envp[]) {
                         ppid[k++]=t[j];
                     ppid[k] = '\0';
                 }
-                if(files->state == 2) {
+                /*if(files->state == 2) {
                     continue;
-                }
+                }*/
                 write(1, pid, strlen(pid));
                 putchar(' ');
                 write(1, ppid, strlen(ppid));

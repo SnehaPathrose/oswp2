@@ -390,3 +390,46 @@ int do_execvpe(const char *file, char *const argv[], char *const envp[]) {
     return 0;
 }
 
+int sys_unlink(const char* pathname) {
+    struct filesys_tnode *killproc = NULL;
+    struct filesys_node *killproci = NULL;
+    struct filesys_tnode *parent_node;
+    char parent_path[50], node_to_unlink[10];
+    kstrcopy(parent_path, (char *) pathname);
+    int j = 0;
+    for (j = kstrlength((char *) pathname); parent_path[j] != '/'; j--){
+        parent_path[j] = '\0';
+    };
+
+    j++;
+    int k = 0;
+    for (k = 0; j < kstrlength((char *) pathname); j++, k++) {
+        node_to_unlink[k] = pathname[j];
+    }
+    node_to_unlink[k] = '\0';
+
+    parent_node = find_file(parent_path);
+    if (parent_node == NULL) {
+        return -1;
+    }
+    int i = 0;
+    for (i = 0; i < parent_node->link_to_inode->num_sub_files; i++) {
+        if (kstrcmp(parent_node->link_to_inode->sub_files_list[i].name, node_to_unlink) == 0) {
+            //kprintf("Found process");
+            killproc = &parent_node->link_to_inode->sub_files_list[i];
+            killproci = killproc->link_to_inode;
+            break;
+        }
+    }
+    for (; i < parent_node->link_to_inode->num_sub_files - 1; i++) {
+        //if (kstrcmp(proc_directory->link_to_inode->sub_files_list[i].name, process_name) == 0) {
+        parent_node->link_to_inode->sub_files_list[i] = parent_node->link_to_inode->sub_files_list[i +
+                                                                                                   1];
+        //}
+    }
+    memset(&parent_node->link_to_inode->sub_files_list[i], 0, sizeof(struct filesys_tnode));
+    parent_node->link_to_inode->num_sub_files--;
+    kfree(killproci);
+    return 0;
+}
+
